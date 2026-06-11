@@ -15,6 +15,8 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     private RectTransform rectTransform;
     [SerializeField] private Slider brushSizeSlider;
     [SerializeField] private Texture2D targetPattern;
+    [SerializeField] private GameObject drawingPanel;
+    [SerializeField] private GameObject gate;
     private Color brushColor = Color.green;
     private int brushSize = 2;
 
@@ -111,12 +113,14 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         if (texture == null)
         {
             Debug.LogWarning("[DrawingTest] Drawing texture has not been initialized.", this);
+            HideDrawingPanel();
             return;
         }
 
         if (targetPattern == null)
         {
             Debug.LogWarning("[DrawingTest] Target Pattern is not assigned.", this);
+            HideDrawingPanel();
             return;
         }
 
@@ -141,6 +145,27 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         Debug.Log(
             $"[DrawingTest] Similarity Score: {similarityScore:F2} / 100 - {result}",
             this);
+
+        if (result != "Fail")
+        {
+            if (gate != null)
+            {
+                gate.SetActive(false);
+                Debug.Log(
+                    $"[DrawingTest] Gate '{gate.name}' opened after result: {result}.",
+                    gate);
+            }
+            else
+            {
+                Debug.LogWarning("[DrawingTest] Gate is not assigned.", this);
+            }
+        }
+        else
+        {
+            Debug.Log("[DrawingTest] Submission failed. Gate remains closed.", this);
+        }
+
+        HideDrawingPanel();
     }
 
     public void ClearCanvas()
@@ -183,6 +208,17 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         }
 
         undoHistory.Add(texture.GetPixels());
+    }
+
+    private void HideDrawingPanel()
+    {
+        if (drawingPanel == null)
+        {
+            return;
+        }
+
+        drawingPanel.SetActive(false);
+        Debug.Log($"[DrawingTest] Drawing Panel '{drawingPanel.name}' hidden.", this);
     }
 
     private Texture2D DownsampleTexture(Texture source)

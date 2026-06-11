@@ -4,9 +4,6 @@ public class HideZoneTrigger : MonoBehaviour
 {
     [SerializeField] private GameObject drawingPanel;
 
-    // 같은 HideZone이 한 번만 작동하도록 상태를 저장합니다.
-    private bool hasTriggered;
-
     private void OnTriggerEnter2D(Collider2D other)
     {
         Debug.Log(
@@ -19,55 +16,41 @@ public class HideZoneTrigger : MonoBehaviour
             return;
         }
 
-        if (hasTriggered)
+        if (drawingPanel == null)
         {
-            Debug.Log("[HideZoneTrigger] This HideZone has already been triggered.", this);
+            Debug.LogError("[HideZoneTrigger] Drawing Panel is not assigned.", this);
             return;
         }
 
-        hasTriggered = true;
+        // HideZone 안에 들어오면 기존 그림이 담긴 DrawingPanel을 표시합니다.
+        drawingPanel.SetActive(true);
+        Debug.Log(
+            $"[HideZoneTrigger] Drawing Panel '{drawingPanel.name}' activated.",
+            drawingPanel);
+    }
 
-        // Inspector에 연결한 DrawingPanel을 화면에 표시합니다.
-        if (drawingPanel != null)
+    private void OnTriggerExit2D(Collider2D other)
+    {
+        Debug.Log(
+            $"[HideZoneTrigger] Trigger exited - Object: '{other.name}', Tag: '{other.tag}'",
+            this);
+
+        // Player가 아닌 오브젝트가 나간 경우에는 아무 작업도 하지 않습니다.
+        if (!other.CompareTag("Player"))
         {
-            drawingPanel.SetActive(true);
-            Debug.Log(
-                $"[HideZoneTrigger] Drawing Panel '{drawingPanel.name}' activated.",
-                drawingPanel);
+            return;
         }
-        else
+
+        if (drawingPanel == null)
         {
             Debug.LogError("[HideZoneTrigger] Drawing Panel is not assigned.", this);
+            return;
         }
 
-        // PlayerController를 비활성화하여 추가 이동 입력을 막습니다.
-        PlayerController playerController = other.GetComponent<PlayerController>();
-
-        if (playerController != null)
-        {
-            playerController.enabled = false;
-            Debug.Log("[HideZoneTrigger] PlayerController disabled.", playerController);
-        }
-        else
-        {
-            Debug.LogWarning(
-                "[HideZoneTrigger] PlayerController was not found on the Player.",
-                other);
-        }
-
-        // 남아 있는 이동 속도를 제거하여 플레이어를 즉시 멈춥니다.
-        Rigidbody2D playerRigidbody = other.attachedRigidbody;
-
-        if (playerRigidbody != null)
-        {
-            playerRigidbody.linearVelocity = Vector2.zero;
-            Debug.Log("[HideZoneTrigger] Player velocity reset to zero.", playerRigidbody);
-        }
-        else
-        {
-            Debug.LogWarning(
-                "[HideZoneTrigger] Rigidbody2D was not found on the Player.",
-                other);
-        }
+        // 패널만 숨기고 DrawingTest.ClearCanvas()는 호출하지 않아 그림을 유지합니다.
+        drawingPanel.SetActive(false);
+        Debug.Log(
+            $"[HideZoneTrigger] Drawing Panel '{drawingPanel.name}' hidden.",
+            drawingPanel);
     }
 }
