@@ -14,14 +14,17 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     private RawImage rawImage;
     private RectTransform rectTransform;
     [SerializeField] private Slider brushSizeSlider;
+    [SerializeField] private FlexibleColorPicker colorPicker;
     [SerializeField] private Texture2D targetPattern;
     [SerializeField] private GameObject drawingPanel;
     [SerializeField] private GameObject gate;
-    private Color brushColor = Color.green;
+    [SerializeField] private PredatorController predatorController;
+    private Color brushColor = new Color32(255, 105, 180, 255);
     private int brushSize = 2;
 
     private Vector2Int previousPixel;
     private bool hasPreviousPixel;
+    private Texture2D runtimeAnswerTexture;
     private readonly List<Color[]> undoHistory = new List<Color[]>();
 
     private void Start()
@@ -38,6 +41,21 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         rawImage.texture = texture;
         FillCanvasWhite();
 
+        if (colorPicker != null)
+        {
+            brushColor = colorPicker.color;
+
+            Debug.Log(
+                $"[DrawingTest] FlexibleColorPicker connected. Initial brush color: {brushColor}",
+                this);
+        }
+        else
+        {
+            Debug.LogWarning(
+                $"[DrawingTest] FlexibleColorPicker is not assigned. Default Pink brush color will be used: {brushColor}",
+                this);
+        }
+
         if (brushSizeSlider != null)
         {
             brushSizeSlider.minValue = 1;
@@ -48,11 +66,33 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         }
     }
 
+    private void Update()
+    {
+        if (colorPicker == null)
+        {
+            return;
+        }
+
+        Color pickerColor = colorPicker.color;
+
+        if (pickerColor == brushColor)
+        {
+            return;
+        }
+
+        SetBrushColor(pickerColor);
+    }
+
     private void OnDestroy()
     {
         if (brushSizeSlider != null)
         {
             brushSizeSlider.onValueChanged.RemoveListener(SetBrushSize);
+        }
+
+        if (runtimeAnswerTexture != null)
+        {
+            Destroy(runtimeAnswerTexture);
         }
     }
 
@@ -73,21 +113,6 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         hasPreviousPixel = false;
     }
 
-    public void SetGreen()
-    {
-        brushColor = Color.green;
-    }
-
-    public void SetBrown()
-    {
-        brushColor = new Color32(150, 75, 0, 255);
-    }
-
-    public void SetPink()
-    {
-        brushColor = new Color32(255, 105, 180, 255);
-    }
-
     public void SetSmallBrush()
     {
         brushSize = 2;
@@ -106,6 +131,56 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         Debug.Log(
             $"[DrawingTest] Slider Value: {value:F2}, Brush Size: {previousBrushSize} -> {brushSize}",
             this);
+    }
+
+    private void SetBrushColor(Color color)
+    {
+        brushColor = color;
+
+        Debug.Log(
+            $"[DrawingTest] Brush color updated from FlexibleColorPicker: {brushColor}",
+            this);
+    }
+
+    public void SetAnswerTexture(Texture2D newAnswer)
+    {
+        if (newAnswer == null)
+        {
+            Debug.LogWarning(
+                "[DrawingTest] New answer texture is null. Existing answer texture was kept.",
+                this);
+            return;
+        }
+
+        if (runtimeAnswerTexture != null &&
+            runtimeAnswerTexture != newAnswer)
+        {
+            Destroy(runtimeAnswerTexture);
+        }
+
+        runtimeAnswerTexture = newAnswer;
+        targetPattern = newAnswer;
+
+        Debug.Log(
+            $"[DrawingTest] Answer texture updated: {newAnswer.width}x{newAnswer.height}",
+            this);
+    }
+
+    public Texture2D GetCurrentDrawingTexture()
+    {
+        if (texture == null)
+        {
+            Debug.LogWarning(
+                "[DrawingTest] Current drawing texture is not initialized.",
+                this);
+            return null;
+        }
+
+        Debug.Log(
+            $"[DrawingTest] Current drawing texture requested: {texture.width}x{texture.height}",
+            this);
+
+        return texture;
     }
 
     public void SubmitDrawing()
@@ -159,10 +234,28 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
             {
                 Debug.LogWarning("[DrawingTest] Gate is not assigned.", this);
             }
+
+            if (predatorController != null)
+            {
+                predatorController.ResolveCamouflageSubmission(true);
+            }
+            else
+            {
+                Debug.LogWarning("[DrawingTest] PredatorController is not assigned.", this);
+            }
         }
         else
         {
             Debug.Log("[DrawingTest] Submission failed. Gate remains closed.", this);
+
+            if (predatorController != null)
+            {
+                predatorController.ResolveCamouflageSubmission(false);
+            }
+            else
+            {
+                Debug.LogWarning("[DrawingTest] PredatorController is not assigned.", this);
+            }
         }
 
         HideDrawingPanel();
