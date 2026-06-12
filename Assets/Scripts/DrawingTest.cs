@@ -19,6 +19,8 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     [SerializeField] private GameObject drawingPanel;
     [SerializeField] private GameObject gate;
     [SerializeField] private PredatorController predatorController;
+    [Range(0.05f, 1.5f)]
+    [SerializeField] private float colorTolerance = 0.5f;
     private Color brushColor = new Color32(255, 105, 180, 255);
     private int brushSize = 2;
 
@@ -199,6 +201,11 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
             return;
         }
 
+        Color drawingAverageColor = CalculateAverageColor(texture);
+        Debug.Log(
+            $"[DrawingTest] Drawing average color: {drawingAverageColor}",
+            this);
+
         Texture2D downsampledDrawing = DownsampleTexture(texture);
         Texture2D downsampledTarget = DownsampleTexture(targetPattern);
 
@@ -221,7 +228,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
             result == "Success";
 
         Debug.Log(
-            $"[DrawingTest] Similarity Score: {similarityScore:F2} / 100 - {result}. Success: {isSuccess}",
+            $"[DrawingTest] Similarity Score: {similarityScore:F2} / 100 - {result}. Color tolerance: {colorTolerance:F2}. Success: {isSuccess}",
             this);
 
         if (isSuccess)
@@ -366,6 +373,36 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         return totalColor / (halfSize * halfSize);
     }
 
+    private Color CalculateAverageColor(Texture2D source)
+    {
+        Color32[] pixels = source.GetPixels32();
+
+        if (pixels.Length == 0)
+        {
+            return Color.clear;
+        }
+
+        long red = 0;
+        long green = 0;
+        long blue = 0;
+        long alpha = 0;
+
+        foreach (Color32 pixel in pixels)
+        {
+            red += pixel.r;
+            green += pixel.g;
+            blue += pixel.b;
+            alpha += pixel.a;
+        }
+
+        float scale = 1f / (pixels.Length * 255f);
+        return new Color(
+            red * scale,
+            green * scale,
+            blue * scale,
+            alpha * scale);
+    }
+
     private float CalculateColorSimilarity(Color first, Color second)
     {
         float redDifference = first.r - second.r;
@@ -375,9 +412,23 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
             redDifference * redDifference +
             greenDifference * greenDifference +
             blueDifference * blueDifference);
-        float normalizedDistance = colorDistance / Mathf.Sqrt(3f);
+        float safeTolerance = Mathf.Clamp(
+            colorTolerance,
+            0.01f,
+            Mathf.Sqrt(3f) - 0.01f);
 
-        return (1f - normalizedDistance) * 100f;
+        if (colorDistance <= safeTolerance)
+        {
+            float toleratedDifference = colorDistance / safeTolerance;
+            return Mathf.Lerp(100f, 70f, toleratedDifference);
+        }
+
+        float excessDifference = Mathf.InverseLerp(
+            safeTolerance,
+            Mathf.Sqrt(3f),
+            colorDistance);
+
+        return Mathf.Lerp(70f, 0f, excessDifference);
     }
 
     private string GetSimilarityResult(float similarityScore)
