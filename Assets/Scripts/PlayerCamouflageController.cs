@@ -35,7 +35,7 @@ public class PlayerCamouflageController : MonoBehaviour
 
     [Header("Timer")]
     [Min(0.1f)]
-    public float camouflageTimeLimit = 12f;
+    public float camouflageTimeLimit = 30f;
 
     private CamouflageModeType currentMode = CamouflageModeType.None;
     private bool isCamouflageMode;
@@ -359,9 +359,22 @@ public class PlayerCamouflageController : MonoBehaviour
         hasSubmitted = true;
         isTimerRunning = false;
 
+        bool shouldEvaluateCamouflage =
+            predator != null &&
+            predator.IsChasingOrThreatening;
+
+        Debug.Log(
+            shouldEvaluateCamouflage
+                ? "[PlayerCamouflageController] Combat camouflage submitted. Evaluating result."
+                : "[PlayerCamouflageController] Free camouflage submitted. Pattern applied without evaluation.",
+            this);
+
         if (drawingManager != null)
         {
-            drawingManager.SubmitDrawing();
+            if (shouldEvaluateCamouflage)
+            {
+                drawingManager.SubmitDrawing();
+            }
 
             // Fail로 Attack이 발생해 ForceCancel된 경우에는 외형을 적용하지 않습니다.
             if (isCamouflageMode &&
@@ -401,12 +414,6 @@ public class PlayerCamouflageController : MonoBehaviour
 
             Debug.Log(
                 $"[PlayerCamouflageController] Timed camouflage submitted ({(isAutomatic ? "Auto" : "Manual")}).",
-                this);
-        }
-        else
-        {
-            Debug.Log(
-                "[PlayerCamouflageController] Free camouflage submitted.",
                 this);
         }
 

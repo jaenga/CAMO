@@ -216,12 +216,15 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
 
         float similarityScore = Mathf.Clamp(totalScore / 4f, 0f, 100f);
         string result = GetSimilarityResult(similarityScore);
+        bool isSuccess =
+            result == "Perfect" ||
+            result == "Success";
 
         Debug.Log(
-            $"[DrawingTest] Similarity Score: {similarityScore:F2} / 100 - {result}",
+            $"[DrawingTest] Similarity Score: {similarityScore:F2} / 100 - {result}. Success: {isSuccess}",
             this);
 
-        if (result != "Fail")
+        if (isSuccess)
         {
             if (gate != null)
             {
@@ -246,7 +249,9 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         }
         else
         {
-            Debug.Log("[DrawingTest] Submission failed. Gate remains closed.", this);
+            Debug.Log(
+                $"[DrawingTest] Submission result '{result}' treated as failure. Gate remains closed.",
+                this);
 
             if (predatorController != null)
             {

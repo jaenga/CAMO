@@ -37,6 +37,10 @@ public class PredatorController : MonoBehaviour
     private float remainingChaseTime;
     private bool isCamouflageSlowMode;
 
+    public bool IsChasingOrThreatening =>
+        isActiveAndEnabled &&
+        currentState != PredatorState.Hidden;
+
     private void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();

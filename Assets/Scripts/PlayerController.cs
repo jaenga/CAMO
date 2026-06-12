@@ -1,9 +1,12 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-[RequireComponent(typeof(Rigidbody2D))]
+[RequireComponent(typeof(Rigidbody2D), typeof(Collider2D))]
 public class PlayerController : MonoBehaviour
 {
+    private const float GroundCheckDistance = 0.1f;
+    private const float GroundCheckHeight = 0.05f;
+
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float jumpForce = 8f;
@@ -11,9 +14,11 @@ public class PlayerController : MonoBehaviour
     [Header("Ground Check")]
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float groundCheckRadius = 0.15f;
+    [SerializeField] private Vector2 groundCheckBoxSize = new Vector2(0.6f, 0.2f);
     [SerializeField] private LayerMask groundLayer;
 
     private Rigidbody2D rigidbody2D;
+    private Collider2D playerCollider;
     private float horizontalInput;
     private bool isGrounded;
     private Vector3 originalScale;
@@ -21,17 +26,13 @@ public class PlayerController : MonoBehaviour
     private void Awake()
     {
         rigidbody2D = GetComponent<Rigidbody2D>();
+        playerCollider = GetComponent<Collider2D>();
         originalScale = transform.localScale;
     }
 
     private void Update()
     {
-        // Ground Check가 지정되어 있으면 작은 원 범위 안의 Ground 레이어를 검사합니다.
-        isGrounded = groundCheck != null &&
-                     Physics2D.OverlapCircle(
-                         groundCheck.position,
-                         groundCheckRadius,
-                         groundLayer) != null;
+        isGrounded = CheckGrounded();
 
         ReadMovementInput();
 
@@ -115,15 +116,56 @@ public class PlayerController : MonoBehaviour
             originalScale.z);
     }
 
+    private bool CheckGrounded()
+    {
+        if (playerCollider == null)
+        {
+            return false;
+        }
+
+        Bounds bounds = playerCollider.bounds;
+        Vector2 castSize = new Vector2(
+            bounds.size.x * 0.8f,
+            GroundCheckHeight);
+        float castDistance = bounds.extents.y + GroundCheckDistance;
+
+        RaycastHit2D hit = Physics2D.BoxCast(
+            bounds.center,
+            castSize,
+            0f,
+            Vector2.down,
+            castDistance,
+            groundLayer);
+
+        Debug.DrawRay(
+            bounds.center,
+            Vector2.down * castDistance,
+            hit.collider != null ? Color.green : Color.red);
+
+        return hit.collider != null;
+    }
+
     private void OnDrawGizmosSelected()
     {
-        if (groundCheck == null)
+        Collider2D colliderToDraw =
+            playerCollider != null
+                ? playerCollider
+                : GetComponent<Collider2D>();
+
+        if (colliderToDraw == null)
         {
             return;
         }
 
-        // Scene 뷰에서 실제 바닥 감지 범위를 확인할 수 있습니다.
+        Bounds bounds = colliderToDraw.bounds;
+        Vector2 castSize = new Vector2(
+            bounds.size.x * 0.8f,
+            GroundCheckHeight);
+        float castDistance = bounds.extents.y + GroundCheckDistance;
+        Vector3 castEnd = bounds.center + Vector3.down * castDistance;
+
         Gizmos.color = isGrounded ? Color.green : Color.red;
-        Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
+        Gizmos.DrawLine(bounds.center, castEnd);
+        Gizmos.DrawWireCube(castEnd, castSize);
     }
 }
