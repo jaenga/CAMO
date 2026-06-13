@@ -19,6 +19,7 @@ public class PlayerController : MonoBehaviour
 
     private Rigidbody2D rigidbody2D;
     private Collider2D playerCollider;
+    private Animator animator;
     private float horizontalInput;
     private bool isGrounded;
     private Vector3 originalScale;
@@ -27,6 +28,7 @@ public class PlayerController : MonoBehaviour
     {
         rigidbody2D = GetComponent<Rigidbody2D>();
         playerCollider = GetComponent<Collider2D>();
+        animator = GetComponent<Animator>();
         originalScale = transform.localScale;
     }
 
@@ -35,6 +37,13 @@ public class PlayerController : MonoBehaviour
         isGrounded = CheckGrounded();
 
         ReadMovementInput();
+
+        if (animator != null)
+        {
+            animator.SetBool(
+                "isMoving",
+                !Mathf.Approximately(horizontalInput, 0f));
+        }
 
         // Space 키 입력과 실제 점프 성공 여부를 Console에서 확인합니다.
         if (Keyboard.current != null &&
