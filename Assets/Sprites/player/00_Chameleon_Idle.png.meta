@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: f3968987b20464a998b023a5ebcd9a2e
+guid: e251b420279d24fcaba6a09835ea1c47
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 1767548243115688917
-    second: 01_Chameleon_Idle_0
+      213: -6191060048943126270
+    second: 00_Chameleon_Idle_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -113,7 +113,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: 01_Chameleon_Idle_0
+      name: 00_Chameleon_Idle_0
       rect:
         serializedVersion: 2
         x: 35
@@ -128,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 5d3c64223c7978810800000000000000
-      internalID: 1767548243115688917
+      spriteID: 209e1a7efafe41aa0800000000000000
+      internalID: -6191060048943126270
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      01_Chameleon_Idle_0: 1767548243115688917
+      00_Chameleon_Idle_0: -6191060048943126270
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

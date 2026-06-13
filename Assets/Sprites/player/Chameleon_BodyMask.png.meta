@@ -1,15 +1,15 @@
 fileFormatVersion: 2
-guid: f3968987b20464a998b023a5ebcd9a2e
+guid: 7dd36ddb4a33b4e599ae3b8c64fa5e1b
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 1767548243115688917
-    second: 01_Chameleon_Idle_0
+      213: 8161622767422641366
+    second: 00_Chameleon_Idle_white_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
     mipMapMode: 0
-    enableMipMap: 0
+    enableMipMap: 1
     sRGBTexture: 1
     linearTexture: 0
     fadeOut: 0
@@ -51,13 +51,13 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 64
+  spritePixelsToUnits: 100
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
-  alphaIsTransparency: 1
+  alphaIsTransparency: 0
   spriteTessellationDetail: -1
-  textureType: 8
+  textureType: 0
   textureShape: 1
   singleChannelComponent: 0
   flipbookRows: 1
@@ -113,7 +113,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: 01_Chameleon_Idle_0
+      name: 00_Chameleon_Idle_white_0
       rect:
         serializedVersion: 2
         x: 35
@@ -128,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 5d3c64223c7978810800000000000000
-      internalID: 1767548243115688917
+      spriteID: 6d497f23aa8e34170800000000000000
+      internalID: 8161622767422641366
       vertices: []
       indices: 
       edges: []
@@ -138,7 +138,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 5e97eb03825dee720800000000000000
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -148,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      01_Chameleon_Idle_0: 1767548243115688917
+      00_Chameleon_Idle_white_0: 8161622767422641366
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

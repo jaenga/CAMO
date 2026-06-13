@@ -11,6 +11,15 @@ public class PlayerCamouflageApplier : MonoBehaviour
     [Tooltip("패턴을 표시할 자식 CamouflageOverlay의 SpriteRenderer입니다.")]
     [SerializeField] private SpriteRenderer overlayRenderer;
 
+    [Header("Camouflage Mask")]
+    [Tooltip("몸통 내부는 흰색/불투명, 외부는 검정/투명인 마스크입니다.")]
+    [SerializeField] private Texture2D bodyMaskTexture;
+
+    [Tooltip("검정 테두리, 눈, 입 등 드로잉 위에 유지할 라인 이미지입니다.")]
+    [SerializeField] private Texture2D lineTexture;
+
+    [SerializeField] private bool keepOriginalLine = true;
+
     private Sprite camouflageSprite;
     private Texture2D camouflageTexture;
 
@@ -54,6 +63,22 @@ public class PlayerCamouflageApplier : MonoBehaviour
             return;
         }
 
+        if (playerRenderer.sprite == null)
+        {
+            Debug.LogWarning(
+                "[PlayerCamouflageApplier] Player Sprite is not assigned.",
+                this);
+            return;
+        }
+
+        if (bodyMaskTexture == null)
+        {
+            Debug.LogWarning(
+                "[PlayerCamouflageApplier] Body Mask Texture is not assigned. Camouflage was not applied.",
+                this);
+            return;
+        }
+
         EnsureOverlayRenderer();
 
         if (overlayRenderer == null)
@@ -66,29 +91,34 @@ public class PlayerCamouflageApplier : MonoBehaviour
 
         ReleaseGeneratedCamouflage();
 
-        // 드로잉 원본이 바뀌어도 적용된 외형이 유지되도록 별도 Texture를 만듭니다.
-        camouflageTexture = new Texture2D(
-            texture.width,
-            texture.height,
-            TextureFormat.RGBA32,
-            false)
+        Sprite playerSprite = playerRenderer.sprite;
+        Texture2D playerTexture = playerSprite.texture;
+
+        // Player, Body Mask, Line Texture는 Read/Write Enabled가 필요합니다.
+        // 픽셀 아트에는 Filter Mode Point, Compression None을 권장합니다.
+        try
         {
-            filterMode = texture.filterMode,
-            wrapMode = TextureWrapMode.Clamp,
-            name = "PlayerCamouflageTexture"
-        };
-        camouflageTexture.SetPixels32(texture.GetPixels32());
-        camouflageTexture.Apply();
+            camouflageTexture = CreateMaskedCamouflageTexture(
+                texture,
+                playerSprite,
+                playerTexture);
+        }
+        catch (UnityException exception)
+        {
+            Debug.LogError(
+                "[PlayerCamouflageApplier] Camouflage textures must have Read/Write Enabled. " +
+                "Filter Mode Point and Compression None are recommended.\n" +
+                exception.Message,
+                this);
+            ReleaseGeneratedCamouflage();
+            return;
+        }
 
         camouflageSprite = Sprite.Create(
             camouflageTexture,
-            new Rect(
-                0f,
-                0f,
-                camouflageTexture.width,
-                camouflageTexture.height),
-            new Vector2(0.5f, 0.5f),
-            100f);
+            playerSprite.rect,
+            GetNormalizedPivot(playerSprite),
+            playerSprite.pixelsPerUnit);
         camouflageSprite.name = "PlayerCamouflageSprite";
 
         overlayRenderer.sprite = camouflageSprite;
@@ -101,6 +131,120 @@ public class PlayerCamouflageApplier : MonoBehaviour
         Debug.Log(
             "[PlayerCamouflageApplier] Player original sprite preserved.",
             this);
+    }
+
+    private Texture2D CreateMaskedCamouflageTexture(
+        Texture2D drawingTexture,
+        Sprite playerSprite,
+        Texture2D playerTexture)
+    {
+        Texture2D resultTexture = new Texture2D(
+            playerTexture.width,
+            playerTexture.height,
+            TextureFormat.RGBA32,
+            false)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp,
+            name = "PlayerCamouflageTexture"
+        };
+
+        Color32[] resultPixels =
+            new Color32[playerTexture.width * playerTexture.height];
+        Rect spriteRect = playerSprite.rect;
+        int startX = Mathf.RoundToInt(spriteRect.x);
+        int startY = Mathf.RoundToInt(spriteRect.y);
+        int spriteWidth = Mathf.RoundToInt(spriteRect.width);
+        int spriteHeight = Mathf.RoundToInt(spriteRect.height);
+
+        for (int localY = 0; localY < spriteHeight; localY++)
+        {
+            float v = (localY + 0.5f) / spriteHeight;
+            int textureY = startY + localY;
+
+            for (int localX = 0; localX < spriteWidth; localX++)
+            {
+                float u = (localX + 0.5f) / spriteWidth;
+                int textureX = startX + localX;
+                int resultIndex =
+                    textureY * playerTexture.width + textureX;
+                Color originalColor =
+                    playerTexture.GetPixel(textureX, textureY);
+
+                if (originalColor.a <= 0.01f)
+                {
+                    resultPixels[resultIndex] = Color.clear;
+                    continue;
+                }
+
+                if (keepOriginalLine &&
+                    lineTexture != null)
+                {
+                    Color lineColor =
+                        SampleTextureByUv(lineTexture, u, v);
+
+                    if (lineColor.a > 0.01f)
+                    {
+                        resultPixels[resultIndex] = lineColor;
+                        continue;
+                    }
+                }
+
+                Color maskColor =
+                    SampleTextureByUv(bodyMaskTexture, u, v);
+
+                if (IsBodyMaskPixel(maskColor))
+                {
+                    Color drawingColor =
+                        SampleTextureByUv(drawingTexture, u, v);
+                    drawingColor.a *= originalColor.a;
+                    resultPixels[resultIndex] = drawingColor;
+                }
+                else
+                {
+                    resultPixels[resultIndex] = originalColor;
+                }
+            }
+        }
+
+        resultTexture.SetPixels32(resultPixels);
+        resultTexture.Apply();
+        return resultTexture;
+    }
+
+    private Color SampleTextureByUv(
+        Texture2D source,
+        float u,
+        float v)
+    {
+        int x = Mathf.Clamp(
+            Mathf.FloorToInt(u * source.width),
+            0,
+            source.width - 1);
+        int y = Mathf.Clamp(
+            Mathf.FloorToInt(v * source.height),
+            0,
+            source.height - 1);
+
+        return source.GetPixel(x, y);
+    }
+
+    private bool IsBodyMaskPixel(Color maskColor)
+    {
+        float brightness = Mathf.Max(
+            maskColor.r,
+            Mathf.Max(maskColor.g, maskColor.b));
+
+        // 투명 마스크와 불투명 흑백 마스크를 모두 지원합니다.
+        return maskColor.a > 0.01f &&
+               brightness >= 0.5f;
+    }
+
+    private Vector2 GetNormalizedPivot(Sprite sprite)
+    {
+        return new Vector2(
+            sprite.pivot.x / sprite.rect.width,
+            sprite.pivot.y / sprite.rect.height);
     }
 
     public void ResetCamouflage()
