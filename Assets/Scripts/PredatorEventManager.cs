@@ -1,6 +1,7 @@
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PredatorEventManager : MonoBehaviour
 {
@@ -43,11 +44,16 @@ public class PredatorEventManager : MonoBehaviour
     [Header("UI")]
     [SerializeField] private TMP_Text warningText;
     [SerializeField] private TMP_Text drawingTimerText;
+    [SerializeField] private GameOverUIController gameOverUIController;
+
+    [Header("Development")]
+    [SerializeField] private bool enableDeveloperResultShortcuts = true;
 
     private Coroutine eventCoroutine;
     private bool isEventActive;
     private bool isDrawingActive;
     private bool submitRequested;
+    private bool? developerForcedResult;
 
     public bool IsEventActive => isEventActive;
     public bool IsDrawingActive => isDrawingActive;
@@ -75,6 +81,27 @@ public class PredatorEventManager : MonoBehaviour
         if (predator != null)
         {
             predator.Hide();
+        }
+    }
+
+    private void Update()
+    {
+        if (!enableDeveloperResultShortcuts ||
+            !isDrawingActive ||
+            Keyboard.current == null)
+        {
+            return;
+        }
+
+        if (Keyboard.current.digit1Key.wasPressedThisFrame ||
+            Keyboard.current.numpad1Key.wasPressedThisFrame)
+        {
+            ForceDeveloperResult(true);
+        }
+        else if (Keyboard.current.digit2Key.wasPressedThisFrame ||
+                 Keyboard.current.numpad2Key.wasPressedThisFrame)
+        {
+            ForceDeveloperResult(false);
         }
     }
 
@@ -143,6 +170,7 @@ public class PredatorEventManager : MonoBehaviour
     {
         isEventActive = true;
         submitRequested = false;
+        developerForcedResult = null;
         SetDrawingPanelActive(false);
         SetTextVisible(drawingTimerText, false);
 
@@ -226,6 +254,12 @@ public class PredatorEventManager : MonoBehaviour
                 this);
         }
 
+        if (developerForcedResult.HasValue)
+        {
+            CompleteDeveloperForcedResult(developerForcedResult.Value);
+            yield break;
+        }
+
         if (predator != null)
         {
             Vector3 spawnPosition =
@@ -298,6 +332,53 @@ public class PredatorEventManager : MonoBehaviour
         if (predator != null)
         {
             predator.Hide();
+        }
+
+        eventCoroutine = null;
+        isEventActive = false;
+    }
+
+    private void ForceDeveloperResult(bool isSuccess)
+    {
+        developerForcedResult = isSuccess;
+        submitRequested = true;
+
+        Debug.Log(
+            $"[PredatorEventManager] Developer shortcut forced an immediate {(isSuccess ? "success" : "failure")} result.",
+            this);
+    }
+
+    private void CompleteDeveloperForcedResult(bool isSuccess)
+    {
+        developerForcedResult = null;
+        isDrawingActive = false;
+        SetDrawingPanelActive(false);
+        SetTextVisible(drawingTimerText, false);
+
+        if (camouflageApplier != null)
+        {
+            camouflageApplier.ResetCamouflage();
+        }
+
+        if (isSuccess)
+        {
+            Debug.Log(
+                "[PredatorEventManager] Developer shortcut completed the predator event as a success.",
+                this);
+
+            if (playerController != null)
+            {
+                playerController.SetMovementLocked(false);
+            }
+
+            if (predator != null)
+            {
+                predator.Hide();
+            }
+        }
+        else
+        {
+            HandleGameOver();
         }
 
         eventCoroutine = null;
@@ -504,9 +585,20 @@ public class PredatorEventManager : MonoBehaviour
 
     private void HandleGameOver()
     {
-        // TODO: 프로젝트의 실제 Game Over UI/씬 전환 로직을 연결합니다.
-        Debug.Log(
-            "[PredatorEventManager] TODO: Handle Game Over after camouflage failure.",
+        if (gameOverUIController == null)
+        {
+            gameOverUIController =
+                FindFirstObjectByType<GameOverUIController>();
+        }
+
+        if (gameOverUIController != null)
+        {
+            gameOverUIController.ShowGameOver();
+            return;
+        }
+
+        Debug.LogError(
+            "[PredatorEventManager] GameOverUIController was not found.",
             this);
     }
 
@@ -515,6 +607,7 @@ public class PredatorEventManager : MonoBehaviour
         isEventActive = false;
         isDrawingActive = false;
         submitRequested = false;
+        developerForcedResult = null;
         SetDrawingPanelActive(false);
         SetTextVisible(warningText, false);
         SetTextVisible(drawingTimerText, false);

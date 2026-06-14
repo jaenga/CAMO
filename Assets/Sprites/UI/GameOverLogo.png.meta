@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 942cf970a8eee4c3686baf6932bca244
+guid: 00e0151617a33411babb8bd086541e7f
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 8944885319655485279
-    second: CAMO_LOGO-1.png_0
+      213: -7083582534041522065
+    second: GameOverLogo_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -113,13 +113,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: CAMO_LOGO-1.png_0
+      name: GameOverLogo_0
       rect:
         serializedVersion: 2
-        x: 67
-        y: 37
-        width: 833
-        height: 400
+        x: 18
+        y: 2
+        width: 626
+        height: 331
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -128,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: f5feba26ecd922c70800000000000000
-      internalID: 8944885319655485279
+      spriteID: f603b49373f02bd90800000000000000
+      internalID: -7083582534041522065
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      CAMO_LOGO-1.png_0: 8944885319655485279
+      GameOverLogo_0: -7083582534041522065
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
