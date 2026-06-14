@@ -113,7 +113,7 @@ public class PlayerCamouflageController : MonoBehaviour
         {
             if (predatorEventManager.IsDrawingActive &&
                 Keyboard.current != null &&
-                Keyboard.current.eKey.wasPressedThisFrame)
+                Keyboard.current.rKey.wasPressedThisFrame)
             {
                 predatorEventManager.ToggleDrawingPanel();
             }
@@ -138,12 +138,12 @@ public class PlayerCamouflageController : MonoBehaviour
         }
 
         if (isPuzzleInteractionActive ||
-            !Keyboard.current.eKey.wasPressedThisFrame)
+            !Keyboard.current.rKey.wasPressedThisFrame)
         {
             return;
         }
 
-        Debug.Log("[PlayerCamouflageController] E key pressed.", this);
+        Debug.Log("[PlayerCamouflageController] R key pressed.", this);
 
         if (!isCamouflageMode)
         {

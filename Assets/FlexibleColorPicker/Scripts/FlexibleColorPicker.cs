@@ -643,7 +643,14 @@ public class FlexibleColorPicker : MonoBehaviour {
 
     private void UpdateTextures() {
         foreach(PickerType type in Enum.GetValues(typeof(PickerType))) {
-            if(staticMode | avs.Get((int)type).overrideStatic | (type == PickerType.Main & avs.mainStatic))
+            // The SV main picker must stay dynamic so changes from HPicker
+            // immediately update the displayed hue.
+            bool useStatic =
+                staticMode ||
+                (type != PickerType.Main &&
+                 avs.Get((int)type).overrideStatic);
+
+            if(useStatic)
                 UpdateStatic(type);
             else
                 UpdateDynamic(type);

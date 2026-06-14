@@ -127,6 +127,11 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
 
     public void OnPointerDown(PointerEventData eventData)
     {
+        if (ColorEyedropper.IsAnySampling)
+        {
+            return;
+        }
+
         SaveUndoState();
         hasPreviousPixel = false;
         Draw(eventData);
@@ -134,11 +139,21 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
 
     public void OnDrag(PointerEventData eventData)
     {
+        if (ColorEyedropper.IsAnySampling)
+        {
+            return;
+        }
+
         Draw(eventData);
     }
 
     public void OnPointerUp(PointerEventData eventData)
     {
+        if (ColorEyedropper.IsAnySampling)
+        {
+            return;
+        }
+
         hasPreviousPixel = false;
     }
 
