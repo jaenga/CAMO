@@ -6,12 +6,21 @@ public class BackgroundSampler : MonoBehaviour
 {
     [Header("Capture Target")]
     [SerializeField] private Transform player;
+    [Tooltip("실제 카멜레온 본체의 SpriteRenderer를 연결합니다. 비어 있으면 Player 하위에서 자동 탐색합니다.")]
+    [SerializeField] private SpriteRenderer playerSpriteRenderer;
     [SerializeField] private Camera captureCamera;
 
     [Header("Capture Settings")]
     [Min(1)]
     public int sampleSize = 64;
     [SerializeField] private LayerMask captureLayerMask = 193;
+    [SerializeField] private Vector2 captureCenterOffset = Vector2.zero;
+    [Min(0.01f)]
+    [SerializeField] private float captureSizeMultiplier = 1f;
+    [Min(0.01f)]
+    [SerializeField] private float captureWidthMultiplier = 1f;
+    [Min(0.01f)]
+    [SerializeField] private float captureHeightMultiplier = 1f;
 
     [Header("Debug Preview")]
     [SerializeField] private RawImage answerPreviewImage;
@@ -48,6 +57,10 @@ public class BackgroundSampler : MonoBehaviour
         {
             Debug.LogError("[BackgroundSampler] Player Transform is not assigned.", this);
         }
+        else
+        {
+            TryResolvePlayerSpriteRenderer();
+        }
 
         if (captureCamera == null)
         {
@@ -79,7 +92,8 @@ public class BackgroundSampler : MonoBehaviour
     // WaitForEndOfFrame 이후 호출해야 현재 화면을 정확히 읽을 수 있습니다.
     public Texture2D CaptureBackgroundAroundPlayer()
     {
-        if (player == null || captureCamera == null)
+        if (captureCamera == null ||
+            !TryResolvePlayerSpriteRenderer())
         {
             Debug.LogError(
                 "[BackgroundSampler] Background capture failed because required references are missing.",
@@ -265,8 +279,19 @@ public class BackgroundSampler : MonoBehaviour
 
     private void EnsureCaptureRenderTexture()
     {
-        int width = Mathf.Max(captureCamera.pixelWidth, 1);
-        int height = Mathf.Max(captureCamera.pixelHeight, 1);
+        if (!TryGetCaptureBounds(
+                out _,
+                out Vector2 captureWorldSize))
+        {
+            return;
+        }
+
+        int height = Mathf.Max(sampleSize, 1);
+        float captureAspect =
+            captureWorldSize.x / Mathf.Max(captureWorldSize.y, 0.0001f);
+        int width = Mathf.Max(
+            Mathf.RoundToInt(height * captureAspect),
+            1);
 
         if (captureRenderTexture != null &&
             captureRenderTexture.width == width &&
@@ -307,45 +332,35 @@ public class BackgroundSampler : MonoBehaviour
         captureRect = default;
         viewportPosition = default;
 
-        if (player == null || captureCamera == null)
+        if (captureCamera == null ||
+            !TryGetCaptureBounds(
+                out Vector3 captureCenter,
+                out _))
         {
             return false;
         }
 
         SynchronizeCaptureCamera(false);
         EnsureCaptureRenderTexture();
+
+        if (captureRenderTexture == null)
+        {
+            return false;
+        }
+
         viewportPosition =
-            captureCamera.WorldToViewportPoint(player.position);
+            captureCamera.WorldToViewportPoint(captureCenter);
 
         if (viewportPosition.z < 0f)
         {
             return false;
         }
 
-        int captureSize = Mathf.Clamp(
-            sampleSize,
-            1,
-            Mathf.Min(
-                captureRenderTexture.width,
-                captureRenderTexture.height));
-        float halfSize = captureSize * 0.5f;
-        float playerPixelX =
-            viewportPosition.x * captureRenderTexture.width;
-        float playerPixelY =
-            viewportPosition.y * captureRenderTexture.height;
-        int maxX = captureRenderTexture.width - captureSize;
-        int maxY = captureRenderTexture.height - captureSize;
-        int captureX = Mathf.Clamp(
-            Mathf.RoundToInt(playerPixelX - halfSize),
-            0,
-            maxX);
-        int captureY = Mathf.Clamp(
-            Mathf.RoundToInt(playerPixelY - halfSize),
-            0,
-            maxY);
-
-        captureRect =
-            new Rect(captureX, captureY, captureSize, captureSize);
+        captureRect = new Rect(
+            0f,
+            0f,
+            captureRenderTexture.width,
+            captureRenderTexture.height);
         return true;
     }
 
@@ -378,42 +393,131 @@ public class BackgroundSampler : MonoBehaviour
             return;
         }
 
+        if (!TryGetCaptureBounds(
+                out Vector3 captureCenter,
+                out Vector2 captureWorldSize))
+        {
+            return;
+        }
+
         if (mainCamera == null)
         {
             mainCamera = FindMainCameraForSynchronization();
         }
 
-        if (mainCamera != null)
+        Vector3 capturePosition =
+            captureCamera.transform.position;
+        captureCamera.transform.position = new Vector3(
+            captureCenter.x,
+            captureCenter.y,
+            capturePosition.z);
+
+        if (captureCamera.orthographic)
         {
-            Vector3 capturePosition =
-                captureCamera.transform.position;
-            Vector3 mainPosition =
-                mainCamera.transform.position;
-
-            captureCamera.transform.position = new Vector3(
-                mainPosition.x,
-                mainPosition.y,
-                capturePosition.z);
-
-            if (captureCamera.orthographic &&
-                mainCamera.orthographic)
-            {
-                captureCamera.orthographicSize =
-                    mainCamera.orthographicSize;
-            }
+            captureCamera.orthographicSize =
+                Mathf.Max(captureWorldSize.y * 0.5f, 0.01f);
         }
 
         if (logState && debugLogCapture)
         {
-            string playerPosition =
-                player != null
-                    ? player.position.ToString()
-                    : "Missing";
-
             Debug.Log(
-                $"[BackgroundSampler] Capture camera position: {captureCamera.transform.position}, Player position: {playerPosition}",
+                $"[BackgroundSampler] Capture camera position: {captureCamera.transform.position}, Sprite bounds center: {captureCenter}, Capture world size: {captureWorldSize}",
                 this);
         }
+    }
+
+    private bool TryResolvePlayerSpriteRenderer()
+    {
+        if (playerSpriteRenderer != null)
+        {
+            return true;
+        }
+
+        if (player == null)
+        {
+            return false;
+        }
+
+        SpriteRenderer directRenderer =
+            player.GetComponent<SpriteRenderer>();
+
+        if (IsBasePlayerRenderer(directRenderer))
+        {
+            playerSpriteRenderer = directRenderer;
+            return true;
+        }
+
+        SpriteRenderer[] childRenderers =
+            player.GetComponentsInChildren<SpriteRenderer>(true);
+
+        foreach (SpriteRenderer childRenderer in childRenderers)
+        {
+            if (IsBasePlayerRenderer(childRenderer))
+            {
+                playerSpriteRenderer = childRenderer;
+                return true;
+            }
+        }
+
+        // 이름으로 본체를 구분할 수 없는 경우 GetComponentInChildren 결과를 사용합니다.
+        playerSpriteRenderer =
+            player.GetComponentInChildren<SpriteRenderer>(true);
+
+        if (playerSpriteRenderer == null)
+        {
+            Debug.LogWarning(
+                "[BackgroundSampler] Player SpriteRenderer was not assigned and could not be found under Player.",
+                this);
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool IsBasePlayerRenderer(SpriteRenderer renderer)
+    {
+        return renderer != null &&
+               renderer.sprite != null &&
+               renderer.gameObject.name != "CamouflageOverlay";
+    }
+
+    private bool TryGetCaptureBounds(
+        out Vector3 captureCenter,
+        out Vector2 captureWorldSize)
+    {
+        captureCenter = default;
+        captureWorldSize = default;
+
+        if (!TryResolvePlayerSpriteRenderer() ||
+            playerSpriteRenderer.sprite == null)
+        {
+            return false;
+        }
+
+        Bounds spriteBounds = playerSpriteRenderer.bounds;
+        captureCenter = spriteBounds.center +
+                        (Vector3)captureCenterOffset;
+
+        float sizeMultiplier =
+            Mathf.Max(captureSizeMultiplier, 0.01f);
+        float widthMultiplier =
+            Mathf.Max(captureWidthMultiplier, 0.01f);
+        float heightMultiplier =
+            Mathf.Max(captureHeightMultiplier, 0.01f);
+
+        captureWorldSize = new Vector2(
+            Mathf.Max(
+                spriteBounds.size.x *
+                sizeMultiplier *
+                widthMultiplier,
+                0.01f),
+            Mathf.Max(
+                spriteBounds.size.y *
+                sizeMultiplier *
+                heightMultiplier,
+                0.01f));
+
+        return true;
     }
 
     private Color CalculateAverageColor(Texture2D source)

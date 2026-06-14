@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 338913ea1bdcc408cbe7e15955762935
+guid: 072299e126a814cfaaf014b30b079f4c
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 1904539696864056969
-    second: 07_Chameleon_Walk_06.png_0
+      213: 8207838662651688710
+    second: p_1_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -24,7 +24,7 @@ TextureImporter:
     heightScale: 0.25
     normalMapFilter: 0
     flipGreenChannel: 0
-  isReadable: 1
+  isReadable: 0
   streamingMipmaps: 0
   streamingMipmapsPriority: 0
   vTOnly: 0
@@ -113,13 +113,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: 07_Chameleon_Walk_06.png_0
+      name: p_1_0
       rect:
         serializedVersion: 2
-        x: 26
-        y: 37
-        width: 159
-        height: 78
+        x: 23
+        y: 16
+        width: 174
+        height: 113
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -128,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 986563c73c84e6a10800000000000000
-      internalID: 1904539696864056969
+      spriteID: 6073215d6c918e170800000000000000
+      internalID: 8207838662651688710
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      07_Chameleon_Walk_06.png_0: 1904539696864056969
+      p_1_0: 8207838662651688710
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

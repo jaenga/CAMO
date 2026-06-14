@@ -20,6 +20,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     [SerializeField] private GameObject gate;
     [SerializeField] private PredatorController predatorController;
     [SerializeField] private RawImage chameleonPreviewImage;
+    [SerializeField] private Image chameleonLineImage;
     [Range(0.05f, 1.5f)]
     [SerializeField] private float colorTolerance = 0.5f;
     private Color brushColor = new Color32(255, 105, 180, 255);
@@ -27,13 +28,18 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
 
     private Vector2Int previousPixel;
     private bool hasPreviousPixel;
+    private bool isCanvasMirrored;
     private Texture2D runtimeAnswerTexture;
     private readonly List<Color[]> undoHistory = new List<Color[]>();
 
+    private void Awake()
+    {
+        EnsureCanvasReferences(false);
+    }
+
     private void Start()
     {
-        rawImage = GetComponent<RawImage>();
-        rectTransform = GetComponent<RectTransform>();
+        EnsureCanvasReferences(true);
 
         texture = new Texture2D(TextureSize, TextureSize, TextureFormat.RGBA32, false)
         {
@@ -41,7 +47,11 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
             wrapMode = TextureWrapMode.Clamp
         };
 
-        rawImage.texture = texture;
+        if (rawImage != null)
+        {
+            rawImage.texture = texture;
+        }
+
         FillCanvasTransparent();
 
         if (chameleonPreviewImage != null)
@@ -135,6 +145,204 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         previewObject.SetActive(!previewObject.activeSelf);
     }
 
+    public void SetPreviewFacingDirection(bool isFacingRight)
+    {
+        SetCanvasMirrored(!isFacingRight);
+
+        Debug.Log(
+            $"[DrawingTest] Canvas preview facing direction: {(isFacingRight ? "Right" : "Left")}.",
+            this);
+    }
+
+    public void SetCanvasMirrored(bool mirrored)
+    {
+        isCanvasMirrored = mirrored;
+        EnsureCanvasReferences(true);
+
+        // DrawingCanvas 자체는 반전하지 않고 표시 UV와 입력 좌표를 함께 반전합니다.
+        if (rectTransform != null)
+        {
+            Vector3 canvasScale = rectTransform.localScale;
+            canvasScale.x = Mathf.Abs(canvasScale.x);
+            rectTransform.localScale = canvasScale;
+        }
+
+        if (rawImage != null)
+        {
+            rawImage.uvRect = isCanvasMirrored
+                ? new Rect(1f, 0f, -1f, 1f)
+                : new Rect(0f, 0f, 1f, 1f);
+        }
+
+        if (chameleonLineImage != null)
+        {
+            RectTransform lineRectTransform =
+                chameleonLineImage.rectTransform != null
+                    ? chameleonLineImage.rectTransform
+                    : chameleonLineImage.GetComponent<RectTransform>();
+
+            SetHorizontalMirrored(
+                lineRectTransform,
+                isCanvasMirrored);
+        }
+
+        if (chameleonPreviewImage != null)
+        {
+            RectTransform previewRectTransform =
+                chameleonPreviewImage.rectTransform != null
+                    ? chameleonPreviewImage.rectTransform
+                    : chameleonPreviewImage.GetComponent<RectTransform>();
+
+            SetHorizontalMirrored(
+                previewRectTransform,
+                isCanvasMirrored);
+        }
+    }
+
+    private void EnsureCanvasReferences(bool logWarnings)
+    {
+        if (rawImage == null)
+        {
+            rawImage = GetComponent<RawImage>();
+        }
+
+        if (rectTransform == null)
+        {
+            rectTransform = GetComponent<RectTransform>();
+        }
+
+        if (chameleonLineImage == null)
+        {
+            chameleonLineImage = FindLineImage();
+        }
+
+        if (chameleonPreviewImage == null)
+        {
+            chameleonPreviewImage = FindPreviewImage();
+        }
+
+        if (!logWarnings)
+        {
+            return;
+        }
+
+        if (rawImage == null)
+        {
+            Debug.LogWarning(
+                "[DrawingTest] DrawingCanvas RawImage was not found. Drawing preview mirroring was skipped.",
+                this);
+        }
+
+        if (rectTransform == null)
+        {
+            Debug.LogWarning(
+                "[DrawingTest] DrawingCanvas RectTransform was not found. Canvas transform mirroring was skipped.",
+                this);
+        }
+
+        if (chameleonLineImage == null)
+        {
+            Debug.LogWarning(
+                "[DrawingTest] ChameleonLineImage was not found. Line image mirroring was skipped.",
+                this);
+        }
+
+        if (chameleonPreviewImage == null)
+        {
+            Debug.LogWarning(
+                "[DrawingTest] ChameleonPreviewImage was not found. Optional preview mirroring was skipped.",
+                this);
+        }
+    }
+
+    private Image FindLineImage()
+    {
+        Transform lineTransform = transform.Find("ChameleonLineImage");
+
+        if (lineTransform == null && transform.parent != null)
+        {
+            lineTransform =
+                transform.parent.Find("ChameleonLineImage");
+        }
+
+        if (lineTransform != null)
+        {
+            Image directImage = lineTransform.GetComponent<Image>();
+
+            if (directImage != null)
+            {
+                return directImage;
+            }
+        }
+
+        Image[] childImages = GetComponentsInChildren<Image>(true);
+
+        foreach (Image childImage in childImages)
+        {
+            if (childImage != null &&
+                childImage.name == "ChameleonLineImage")
+            {
+                return childImage;
+            }
+        }
+
+        return null;
+    }
+
+    private RawImage FindPreviewImage()
+    {
+        Transform previewTransform =
+            transform.Find("ChameleonPreviewImage");
+
+        if (previewTransform == null && transform.parent != null)
+        {
+            previewTransform =
+                transform.parent.Find("ChameleonPreviewImage");
+        }
+
+        if (previewTransform != null)
+        {
+            RawImage directPreview =
+                previewTransform.GetComponent<RawImage>();
+
+            if (directPreview != null)
+            {
+                return directPreview;
+            }
+        }
+
+        Transform searchRoot =
+            transform.parent != null ? transform.parent : transform;
+        RawImage[] childRawImages =
+            searchRoot.GetComponentsInChildren<RawImage>(true);
+
+        foreach (RawImage childRawImage in childRawImages)
+        {
+            if (childRawImage != null &&
+                childRawImage.name == "ChameleonPreviewImage")
+            {
+                return childRawImage;
+            }
+        }
+
+        return null;
+    }
+
+    private void SetHorizontalMirrored(
+        RectTransform target,
+        bool mirrored)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        Vector3 scale = target.localScale;
+        scale.x = Mathf.Abs(scale.x) *
+                  (mirrored ? -1f : 1f);
+        target.localScale = scale;
+    }
+
     public void SetSmallBrush()
     {
         brushSize = 2;
@@ -207,49 +415,17 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
 
     public void SubmitDrawing()
     {
-        if (texture == null)
+        if (!TryEvaluateCamouflage(
+                out float similarityScore,
+                out string result))
         {
-            Debug.LogWarning("[DrawingTest] Drawing texture has not been initialized.", this);
             HideDrawingPanel();
             return;
         }
 
-        if (targetPattern == null)
-        {
-            Debug.LogWarning("[DrawingTest] Target Pattern is not assigned.", this);
-            HideDrawingPanel();
-            return;
-        }
-
-        Color drawingAverageColor = CalculateAverageColor(texture);
-        Debug.Log(
-            $"[DrawingTest] Drawing average color: {drawingAverageColor}",
-            this);
-
-        Texture2D downsampledDrawing = DownsampleTexture(texture);
-        Texture2D downsampledTarget = DownsampleTexture(targetPattern);
-
-        float totalScore = 0f;
-
-        for (int region = 0; region < 4; region++)
-        {
-            Color drawingAverage = GetRegionAverageColor(downsampledDrawing, region);
-            Color targetAverage = GetRegionAverageColor(downsampledTarget, region);
-            totalScore += CalculateColorSimilarity(drawingAverage, targetAverage);
-        }
-
-        Destroy(downsampledDrawing);
-        Destroy(downsampledTarget);
-
-        float similarityScore = Mathf.Clamp(totalScore / 4f, 0f, 100f);
-        string result = GetSimilarityResult(similarityScore);
         bool isSuccess =
             result == "Perfect" ||
             result == "Success";
-
-        Debug.Log(
-            $"[DrawingTest] Similarity Score: {similarityScore:F2} / 100 - {result}. Color tolerance: {colorTolerance:F2}. Success: {isSuccess}",
-            this);
 
         if (isSuccess)
         {
@@ -291,6 +467,64 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         }
 
         HideDrawingPanel();
+    }
+
+    public bool TryEvaluateCamouflage(
+        out float similarityScore,
+        out string result)
+    {
+        similarityScore = 0f;
+        result = "Fail";
+
+        if (texture == null)
+        {
+            Debug.LogWarning(
+                "[DrawingTest] Drawing texture has not been initialized.",
+                this);
+            return false;
+        }
+
+        if (targetPattern == null)
+        {
+            Debug.LogWarning(
+                "[DrawingTest] Target Pattern is not assigned.",
+                this);
+            return false;
+        }
+
+        Color drawingAverageColor = CalculateAverageColor(texture);
+        Debug.Log(
+            $"[DrawingTest] Drawing average color: {drawingAverageColor}",
+            this);
+
+        Texture2D downsampledDrawing = DownsampleTexture(texture);
+        Texture2D downsampledTarget = DownsampleTexture(targetPattern);
+        float totalScore = 0f;
+
+        for (int region = 0; region < 4; region++)
+        {
+            Color drawingAverage =
+                GetRegionAverageColor(downsampledDrawing, region);
+            Color targetAverage =
+                GetRegionAverageColor(downsampledTarget, region);
+            totalScore +=
+                CalculateColorSimilarity(drawingAverage, targetAverage);
+        }
+
+        Destroy(downsampledDrawing);
+        Destroy(downsampledTarget);
+
+        similarityScore = Mathf.Clamp(totalScore / 4f, 0f, 100f);
+        result = GetSimilarityResult(similarityScore);
+        bool isSuccess =
+            result == "Perfect" ||
+            result == "Success";
+
+        Debug.Log(
+            $"[DrawingTest] Similarity Score: {similarityScore:F2} / 100 - {result}. Color tolerance: {colorTolerance:F2}. Success: {isSuccess}",
+            this);
+
+        return true;
     }
 
     public void ClearCanvas()
@@ -529,6 +763,11 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
 
         float normalizedX = Mathf.InverseLerp(rect.xMin, rect.xMax, localPoint.x);
         float normalizedY = Mathf.InverseLerp(rect.yMin, rect.yMax, localPoint.y);
+
+        if (isCanvasMirrored)
+        {
+            normalizedX = 1f - normalizedX;
+        }
 
         int x = Mathf.FloorToInt(normalizedX * TextureSize);
         int y = Mathf.FloorToInt(normalizedY * TextureSize);

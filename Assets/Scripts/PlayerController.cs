@@ -23,7 +23,11 @@ public class PlayerController : MonoBehaviour
     private float horizontalInput;
     private bool isGrounded;
     private bool isExternallyGrounded;
+    private bool isMovementLocked;
+    private bool isFacingRight = true;
     private Vector3 originalScale;
+
+    public bool IsFacingRight => isFacingRight;
 
     private void Awake()
     {
@@ -31,11 +35,18 @@ public class PlayerController : MonoBehaviour
         playerCollider = GetComponent<Collider2D>();
         animator = GetComponent<Animator>();
         originalScale = transform.localScale;
+        isFacingRight = originalScale.x >= 0f;
     }
 
     private void Update()
     {
         isGrounded = CheckGrounded() || isExternallyGrounded;
+
+        if (isMovementLocked)
+        {
+            horizontalInput = 0f;
+            return;
+        }
 
         ReadMovementInput();
 
@@ -69,6 +80,12 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (isMovementLocked)
+        {
+            rigidbody2D.linearVelocity = Vector2.zero;
+            return;
+        }
+
         // 물리 이동은 일정한 간격으로 실행되는 FixedUpdate에서 적용합니다.
         rigidbody2D.linearVelocity = new Vector2(
             horizontalInput * moveSpeed,
@@ -120,6 +137,7 @@ public class PlayerController : MonoBehaviour
 
         // 이동 방향에 맞춰 원래 크기를 유지하면서 X축 방향만 반전합니다.
         float direction = horizontalInput > 0f ? 1f : -1f;
+        isFacingRight = horizontalInput > 0f;
         transform.localScale = new Vector3(
             Mathf.Abs(originalScale.x) * direction,
             originalScale.y,
@@ -129,6 +147,27 @@ public class PlayerController : MonoBehaviour
     public void SetExternalGrounded(bool value)
     {
         isExternallyGrounded = value;
+    }
+
+    public void SetMovementLocked(bool locked)
+    {
+        isMovementLocked = locked;
+        horizontalInput = 0f;
+
+        if (rigidbody2D != null)
+        {
+            rigidbody2D.linearVelocity = Vector2.zero;
+        }
+
+        if (animator != null)
+        {
+            if (locked)
+            {
+                animator.SetBool("isMoving", false);
+            }
+
+            animator.enabled = !locked;
+        }
     }
 
     private bool CheckGrounded()

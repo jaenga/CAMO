@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 [RequireComponent(typeof(SpriteRenderer))]
@@ -122,6 +123,7 @@ public class PlayerCamouflageApplier : MonoBehaviour
         camouflageSprite.name = "PlayerCamouflageSprite";
 
         overlayRenderer.sprite = camouflageSprite;
+        overlayRenderer.color = Color.white;
         MatchOverlayToPlayer();
         overlayRenderer.gameObject.SetActive(true);
 
@@ -253,6 +255,7 @@ public class PlayerCamouflageApplier : MonoBehaviour
     {
         if (overlayRenderer != null)
         {
+            overlayRenderer.color = Color.white;
             overlayRenderer.sprite = null;
             overlayRenderer.gameObject.SetActive(false);
         }
@@ -262,6 +265,41 @@ public class PlayerCamouflageApplier : MonoBehaviour
         Debug.Log(
             "[PlayerCamouflageApplier] Player camouflage reset.",
             this);
+    }
+
+    public IEnumerator FadeOutCamouflage(float duration)
+    {
+        if (overlayRenderer == null ||
+            !overlayRenderer.gameObject.activeSelf)
+        {
+            ResetCamouflage();
+            yield break;
+        }
+
+        float safeDuration = Mathf.Max(duration, 0f);
+
+        if (safeDuration <= 0f)
+        {
+            ResetCamouflage();
+            yield break;
+        }
+
+        Color originalColor = overlayRenderer.color;
+        float elapsed = 0f;
+
+        while (elapsed < safeDuration)
+        {
+            float progress = Mathf.Clamp01(elapsed / safeDuration);
+            Color fadedColor = originalColor;
+            fadedColor.a = originalColor.a *
+                           (1f - Mathf.SmoothStep(0f, 1f, progress));
+            overlayRenderer.color = fadedColor;
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        ResetCamouflage();
     }
 
     private void EnsureOverlayRenderer()
@@ -292,6 +330,7 @@ public class PlayerCamouflageApplier : MonoBehaviour
         overlayRenderer.transform.localRotation = Quaternion.identity;
         overlayRenderer.sortingLayerID = playerRenderer.sortingLayerID;
         overlayRenderer.sortingOrder = playerRenderer.sortingOrder + 1;
+        overlayRenderer.color = Color.white;
         overlayRenderer.gameObject.SetActive(false);
     }
 

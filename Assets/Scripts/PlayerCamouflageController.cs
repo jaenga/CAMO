@@ -29,9 +29,15 @@ public class PlayerCamouflageController : MonoBehaviour
     [Tooltip("Submit된 그림을 Player 외형에 적용할 컴포넌트를 연결합니다.")]
     [SerializeField] private PlayerCamouflageApplier camouflageApplier;
 
+    [Tooltip("포식자 이벤트 드로잉을 관리할 PredatorEventManager입니다.")]
+    [SerializeField] private PredatorEventManager predatorEventManager;
+
     [Header("Camouflage Freeze")]
     [Min(0f)]
     [SerializeField] private float camouflageFreezeDuration = 5f;
+
+    [Min(0f)]
+    [SerializeField] private float camouflageFadeDuration = 1.5f;
 
     [Tooltip("위장 판정 중 비활성화할 PlayerController를 연결합니다.")]
     [SerializeField] private MonoBehaviour playerMovementController;
@@ -61,6 +67,12 @@ public class PlayerCamouflageController : MonoBehaviour
 
     private void Start()
     {
+        if (predatorEventManager == null)
+        {
+            predatorEventManager =
+                FindFirstObjectByType<PredatorEventManager>();
+        }
+
         ResetCamouflageState();
         SetDrawingPanelActive(false);
         ClearTimerText();
@@ -96,6 +108,19 @@ public class PlayerCamouflageController : MonoBehaviour
 
     private void HandleCamouflageInput()
     {
+        if (predatorEventManager != null &&
+            predatorEventManager.IsEventActive)
+        {
+            if (predatorEventManager.IsDrawingActive &&
+                Keyboard.current != null &&
+                Keyboard.current.eKey.wasPressedThisFrame)
+            {
+                predatorEventManager.ToggleDrawingPanel();
+            }
+
+            return;
+        }
+
         if (Keyboard.current == null)
         {
             return;
@@ -180,6 +205,15 @@ public class PlayerCamouflageController : MonoBehaviour
 
     public void EnterCamouflageMode()
     {
+        if (predatorEventManager != null &&
+            predatorEventManager.IsEventActive)
+        {
+            Debug.Log(
+                "[PlayerCamouflageController] Free camouflage is unavailable during a Predator event.",
+                this);
+            return;
+        }
+
         if (isCamouflageMode)
         {
             Debug.Log(
@@ -198,6 +232,7 @@ public class PlayerCamouflageController : MonoBehaviour
 
         isCamouflageMode = true;
         hasSubmitted = false;
+        UpdateDrawingPreviewDirection();
 
         if (isDangerCamouflageAvailable)
         {
@@ -303,6 +338,14 @@ public class PlayerCamouflageController : MonoBehaviour
     public void ManualSubmit()
     {
         Debug.Log("[PlayerCamouflageController] Manual Submit requested.", this);
+
+        if (predatorEventManager != null &&
+            predatorEventManager.IsEventActive)
+        {
+            predatorEventManager.SubmitEventDrawing();
+            return;
+        }
+
         SubmitCamouflage(false);
     }
 
@@ -477,7 +520,8 @@ public class PlayerCamouflageController : MonoBehaviour
 
         if (camouflageApplier != null)
         {
-            camouflageApplier.ResetCamouflage();
+            yield return camouflageApplier.FadeOutCamouflage(
+                camouflageFadeDuration);
         }
 
         SetPlayerFreezeState(false);
@@ -497,6 +541,12 @@ public class PlayerCamouflageController : MonoBehaviour
 
     private void SetPlayerFreezeState(bool shouldFreeze)
     {
+        if (playerMovementController is PlayerController playerController)
+        {
+            playerController.SetMovementLocked(shouldFreeze);
+            return;
+        }
+
         if (shouldFreeze)
         {
             Rigidbody2D playerRigidbody = GetPlayerRigidbody();
@@ -544,6 +594,23 @@ public class PlayerCamouflageController : MonoBehaviour
         if (drawingPanel != null)
         {
             drawingPanel.SetActive(isActive);
+        }
+    }
+
+    private void UpdateDrawingPreviewDirection()
+    {
+        if (drawingManager == null)
+        {
+            return;
+        }
+
+        PlayerController playerController =
+            GetComponent<PlayerController>();
+
+        if (playerController != null)
+        {
+            drawingManager.SetPreviewFacingDirection(
+                playerController.IsFacingRight);
         }
     }
 

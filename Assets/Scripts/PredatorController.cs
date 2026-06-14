@@ -33,6 +33,7 @@ public class PredatorController : MonoBehaviour
     [SerializeField] private bool requireCamouflageToSurvive;
 
     private SpriteRenderer spriteRenderer;
+    private Animator animator;
     private Coroutine searchCoroutine;
     private float remainingChaseTime;
     private bool isCamouflageSlowMode;
@@ -43,18 +44,22 @@ public class PredatorController : MonoBehaviour
 
     private void Awake()
     {
-        spriteRenderer = GetComponent<SpriteRenderer>();
+        spriteRenderer = GetComponentInChildren<SpriteRenderer>(true);
+        animator = GetComponentInChildren<Animator>(true);
 
         if (spriteRenderer == null)
         {
-            Debug.LogError(
-                "[PredatorController] SpriteRenderer was not found.",
+            Debug.LogWarning(
+                "[PredatorController] Child Visual SpriteRenderer was not found.",
                 this);
-            return;
         }
 
         // 게임 시작 시 Predator는 보이지 않는 Hidden 상태로 대기합니다.
-        spriteRenderer.enabled = false;
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.enabled = false;
+        }
+
         currentState = PredatorState.Hidden;
     }
 
@@ -223,6 +228,107 @@ public class PredatorController : MonoBehaviour
         Debug.Log(
             $"[PredatorController] Camouflage slow mode: {(isEnabled ? "Enabled" : "Disabled")}. Chase speed: {GetCurrentChaseSpeed():F1}",
             this);
+    }
+
+    public void ShowAtSpawnPoint()
+    {
+        ShowAtSpawnPoint(null);
+    }
+
+    public void ShowAtSpawnPoint(Transform overrideSpawnPoint)
+    {
+        Transform targetSpawnPoint =
+            overrideSpawnPoint != null
+                ? overrideSpawnPoint
+                : spawnPoint;
+
+        if (targetSpawnPoint != null)
+        {
+            ShowAtPosition(targetSpawnPoint.position);
+            return;
+        }
+
+        Show();
+    }
+
+    public void ShowAtPosition(Vector3 position)
+    {
+        transform.position = position;
+        Show();
+    }
+
+    private void Show()
+    {
+        if (!gameObject.activeSelf)
+        {
+            gameObject.SetActive(true);
+        }
+
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.enabled = true;
+        }
+    }
+
+    public void Hide()
+    {
+        StopSearchCoroutine();
+        requireCamouflageToSurvive = false;
+        remainingChaseTime = 0f;
+
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.enabled = false;
+        }
+
+        ChangeState(PredatorState.Hidden);
+    }
+
+    public void PlayWalk()
+    {
+        PlayAnimation("Predator_Walk");
+    }
+
+    public void PlayFly()
+    {
+        PlayAnimation("Predator_Fly");
+    }
+
+    public void PlayStop()
+    {
+        PlayAnimation("Predator_Stop");
+    }
+
+    public void SetFacingDirection(float moveDirectionX)
+    {
+        if (spriteRenderer == null)
+        {
+            Debug.LogWarning(
+                "[PredatorController] Cannot set facing direction because the child SpriteRenderer was not found.",
+                this);
+            return;
+        }
+
+        if (Mathf.Approximately(moveDirectionX, 0f))
+        {
+            return;
+        }
+
+        // 원본 Predator 스프라이트는 왼쪽을 바라봅니다.
+        spriteRenderer.flipX = moveDirectionX > 0f;
+    }
+
+    private void PlayAnimation(string stateName)
+    {
+        if (animator == null)
+        {
+            Debug.LogWarning(
+                $"[PredatorController] Animator was not found. Cannot play '{stateName}'.",
+                this);
+            return;
+        }
+
+        animator.Play(stateName);
     }
 
     private float GetCurrentChaseSpeed()

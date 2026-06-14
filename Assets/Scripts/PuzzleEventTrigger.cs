@@ -4,8 +4,8 @@ using UnityEngine.InputSystem;
 public class PuzzleEventTrigger : MonoBehaviour
 {
     [Header("Predator Event")]
-    [Tooltip("퍼즐 완료 후 추격을 시작할 PredatorController를 연결합니다.")]
-    public PredatorController predator;
+    [Tooltip("퍼즐 완료 후 이벤트를 시작할 PredatorEventManager를 연결합니다.")]
+    [SerializeField] private PredatorEventManager predatorEventManager;
 
     [Tooltip("Timed Camouflage를 활성화할 PlayerCamouflageController를 연결합니다.")]
     public PlayerCamouflageController playerCamouflageController;
@@ -93,16 +93,24 @@ public class PuzzleEventTrigger : MonoBehaviour
         isPuzzleCompleted = true;
         Debug.Log("[PuzzleEventTrigger] Puzzle completed.", this);
 
-        if (predator == null)
+        if (predatorEventManager == null)
+        {
+            predatorEventManager =
+                FindFirstObjectByType<PredatorEventManager>();
+        }
+
+        if (predatorEventManager == null)
         {
             Debug.LogError(
-                "[PuzzleEventTrigger] PredatorController is not assigned.",
+                "[PuzzleEventTrigger] PredatorEventManager is not assigned.",
                 this);
         }
         else
         {
-            predator.StartChase(true);
-            Debug.Log("[PuzzleEventTrigger] Predator chase started.", this);
+            predatorEventManager.StartPredatorEvent();
+            Debug.Log(
+                "[PuzzleEventTrigger] Predator event requested.",
+                this);
         }
 
         if (playerCamouflageController == null)
@@ -115,7 +123,6 @@ public class PuzzleEventTrigger : MonoBehaviour
         {
             playerCamouflageController.SetPuzzleInteractionActive(false);
             playerCamouflageController.SuppressCamouflageInputUntilEReleased();
-            playerCamouflageController.EnableTimedCamouflage();
         }
     }
 }
