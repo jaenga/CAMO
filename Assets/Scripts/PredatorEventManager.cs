@@ -17,6 +17,8 @@ public class PredatorEventManager : MonoBehaviour
     [FormerlySerializedAs("postDrawingFreezeTime")]
     [SerializeField] private float resultAnimationDuration = 5f;
     [Min(0f)]
+    [SerializeField] private float camouflageFadeDuration = 1.5f;
+    [Min(0f)]
     [SerializeField] private float predatorSearchTime = 5f;
 
     [Header("Drawing")]
@@ -50,6 +52,7 @@ public class PredatorEventManager : MonoBehaviour
 
     [Header("Development")]
     [SerializeField] private bool enableDeveloperResultShortcuts = true;
+    [SerializeField] private bool enableDebugLogs;
 
     private Coroutine eventCoroutine;
     private bool isEventActive;
@@ -111,7 +114,7 @@ public class PredatorEventManager : MonoBehaviour
     {
         if (isEventActive)
         {
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PredatorEventManager] Event start ignored because an event is already active.",
                 this);
             return false;
@@ -152,7 +155,7 @@ public class PredatorEventManager : MonoBehaviour
         bool shouldShowPanel = !drawingPanel.activeSelf;
         SetDrawingPanelActive(shouldShowPanel);
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[PredatorEventManager] Event Drawing Panel toggled: {(shouldShowPanel ? "Open" : "Closed")}. Drawing data and timer were preserved.",
             this);
     }
@@ -173,6 +176,9 @@ public class PredatorEventManager : MonoBehaviour
         isEventActive = true;
         submitRequested = false;
         developerForcedResult = null;
+
+        Debug.Log("Predator Event Started", this);
+
         SetDrawingPanelActive(false);
         SetTextVisible(drawingTimerText, false);
 
@@ -258,7 +264,8 @@ public class PredatorEventManager : MonoBehaviour
 
         if (developerForcedResult.HasValue)
         {
-            CompleteDeveloperForcedResult(developerForcedResult.Value);
+            yield return CompleteDeveloperForcedResult(
+                developerForcedResult.Value);
             yield break;
         }
 
@@ -292,14 +299,14 @@ public class PredatorEventManager : MonoBehaviour
             if (isSuccess)
             {
                 predator.PlayStop();
-                Debug.Log(
+                GameplayDebug.Log(enableDebugLogs,
                     "[PredatorEventManager] Camouflage succeeded. Holding the predator stop animation.",
                     this);
             }
             else
             {
                 predator.PlayFly();
-                Debug.Log(
+                GameplayDebug.Log(enableDebugLogs,
                     "[PredatorEventManager] Camouflage failed. Holding the predator detection animation before Game Over.",
                     this);
             }
@@ -312,9 +319,11 @@ public class PredatorEventManager : MonoBehaviour
 
         if (camouflageApplier != null)
         {
-            camouflageApplier.ResetCamouflage();
+            yield return camouflageApplier.FadeOutCamouflage(
+                camouflageFadeDuration);
         }
 
+        // 위장 오버레이가 완전히 사라진 뒤에만 이동을 다시 허용합니다.
         if (playerController != null)
         {
             playerController.SetMovementLocked(false);
@@ -339,26 +348,32 @@ public class PredatorEventManager : MonoBehaviour
         developerForcedResult = isSuccess;
         submitRequested = true;
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[PredatorEventManager] Developer shortcut forced an immediate {(isSuccess ? "success" : "failure")} result.",
             this);
     }
 
-    private void CompleteDeveloperForcedResult(bool isSuccess)
+    private IEnumerator CompleteDeveloperForcedResult(bool isSuccess)
     {
         developerForcedResult = null;
         isDrawingActive = false;
         SetDrawingPanelActive(false);
         SetTextVisible(drawingTimerText, false);
 
+        if (resultAnimationDuration > 0f)
+        {
+            yield return new WaitForSeconds(resultAnimationDuration);
+        }
+
         if (camouflageApplier != null)
         {
-            camouflageApplier.ResetCamouflage();
+            yield return camouflageApplier.FadeOutCamouflage(
+                camouflageFadeDuration);
         }
 
         if (isSuccess)
         {
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PredatorEventManager] Developer shortcut completed the predator event as a success.",
                 this);
 
@@ -639,7 +654,7 @@ public class PredatorEventManager : MonoBehaviour
             result == "Perfect" ||
             result == "Success";
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[PredatorEventManager] Delayed camouflage result: {result}, Score: {score:F2}, Success: {isSuccess}.",
             this);
 

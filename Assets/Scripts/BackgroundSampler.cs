@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 public class BackgroundSampler : MonoBehaviour
@@ -38,13 +39,14 @@ public class BackgroundSampler : MonoBehaviour
     [Tooltip("Preview 라인 방향을 동기화할 PlayerController입니다. 비어 있으면 Player에서 자동 탐색합니다.")]
     [SerializeField] private PlayerController playerController;
     [Tooltip("플레이어 방향과 Preview 라인 반전 상태가 바뀔 때 로그를 출력합니다.")]
-    [SerializeField] private bool debugLogPreviewFlip = true;
+    [SerializeField] private bool debugLogPreviewFlip;
     [Range(0f, 1f)]
     [SerializeField] private float previewLineOpacity = 0.65f;
     [SerializeField] private bool previewEnabled = true;
     [Min(0f)]
     [SerializeField] private float previewUpdateInterval = 0.25f;
-    [SerializeField] private bool debugLogCapture;
+    [FormerlySerializedAs("debugLogCapture")]
+    [SerializeField] private bool enableDebugLogs;
 
     private Texture2D previewTexture;
     private RenderTexture captureRenderTexture;
@@ -144,7 +146,7 @@ public class BackgroundSampler : MonoBehaviour
             return null;
         }
 
-        if (debugLogCapture)
+        if (enableDebugLogs)
         {
             Debug.Log("[BackgroundSampler] Background capture started.", this);
         }
@@ -163,7 +165,7 @@ public class BackgroundSampler : MonoBehaviour
             return null;
         }
 
-        if (debugLogCapture)
+        if (enableDebugLogs)
         {
             Debug.Log(
                 $"[BackgroundSampler] Player viewport position: {viewportPosition}",
@@ -186,7 +188,7 @@ public class BackgroundSampler : MonoBehaviour
 
         Color averageColor = CalculateAverageColor(capturedTexture);
 
-        if (debugLogCapture)
+        if (enableDebugLogs)
         {
             Debug.Log(
                 $"[BackgroundSampler] Captured answer texture size: {capturedTexture.width}x{capturedTexture.height}",
@@ -379,7 +381,7 @@ public class BackgroundSampler : MonoBehaviour
             captureCamera.cullingMask = captureLayerMask.value;
             captureCamera.targetTexture = captureRenderTexture;
 
-            if (debugLogCapture)
+            if (enableDebugLogs)
             {
                 Debug.Log(
                     $"[BackgroundSampler] Capture camera used: {captureCamera.name}",
@@ -399,7 +401,10 @@ public class BackgroundSampler : MonoBehaviour
                 hasLoggedMainCameraWarning = true;
             }
 
-            LogCaptureState();
+            if (enableDebugLogs)
+            {
+                LogCaptureState();
+            }
             captureCamera.Render();
 
             RenderTexture.active = captureRenderTexture;
@@ -552,7 +557,7 @@ public class BackgroundSampler : MonoBehaviour
                 Mathf.Max(captureWorldSize.y * 0.5f, 0.01f);
         }
 
-        if (logState && debugLogCapture)
+        if (logState && enableDebugLogs)
         {
             Debug.Log(
                 $"[BackgroundSampler] Capture camera position: {captureCamera.transform.position}, Capture center: {captureCenter}, Capture world size: {captureWorldSize}",

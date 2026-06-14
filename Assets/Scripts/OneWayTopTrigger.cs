@@ -3,6 +3,7 @@ using UnityEngine;
 [RequireComponent(typeof(BoxCollider2D))]
 public class OneWayTopTrigger : MonoBehaviour
 {
+    [SerializeField] private bool enableDebugLogs;
     private BoxCollider2D platformTrigger;
 
     private void Reset()
@@ -81,7 +82,7 @@ public class OneWayTopTrigger : MonoBehaviour
             ? (Vector3)playerRigidbody.position
             : other.transform.position;
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[OneWayTopTrigger] {triggerEvent} - Player: {other.name}, " +
             $"Velocity Y: {velocityY:F2}, Platform Top Y: {platformTopY:F2}, " +
             $"Player Position: {playerPosition}",

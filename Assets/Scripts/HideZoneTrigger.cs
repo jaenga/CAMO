@@ -2,6 +2,7 @@ using UnityEngine;
 
 public class HideZoneTrigger : MonoBehaviour
 {
+    [SerializeField] private bool enableDebugLogs;
     [SerializeField] private PredatorEventManager predatorEventManager;
 
     private bool hasTriggered;
@@ -30,7 +31,7 @@ public class HideZoneTrigger : MonoBehaviour
         }
 
         predatorEventManager.StartPredatorEvent();
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[HideZoneTrigger] Predator event requested by '{name}'.",
             this);
     }

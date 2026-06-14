@@ -34,7 +34,7 @@ public class PlayerCamouflageController : MonoBehaviour
 
     [Header("Camouflage Freeze")]
     [Min(0f)]
-    [SerializeField] private float camouflageFreezeDuration = 10f;
+    [SerializeField] private float camouflageFreezeDuration = 5f;
 
     [Min(0f)]
     [SerializeField] private float camouflageFadeDuration = 1.5f;
@@ -52,6 +52,9 @@ public class PlayerCamouflageController : MonoBehaviour
     [Header("Timer")]
     [Min(0.1f)]
     public float camouflageTimeLimit = 30f;
+
+    [Header("Debug")]
+    [SerializeField] private bool enableDebugLogs;
 
     private CamouflageModeType currentMode = CamouflageModeType.None;
     private bool isCamouflageMode;
@@ -77,7 +80,7 @@ public class PlayerCamouflageController : MonoBehaviour
         SetDrawingPanelActive(false);
         ClearTimerText();
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             "[PlayerCamouflageController] Ready. Free camouflage is available.",
             this);
     }
@@ -99,7 +102,7 @@ public class PlayerCamouflageController : MonoBehaviour
 
         if (remainingTime <= 0f)
         {
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PlayerCamouflageController] Timer expired auto submit.",
                 this);
             SubmitCamouflage(true);
@@ -143,7 +146,7 @@ public class PlayerCamouflageController : MonoBehaviour
             return;
         }
 
-        Debug.Log("[PlayerCamouflageController] R key pressed.", this);
+        GameplayDebug.Log(enableDebugLogs, "[PlayerCamouflageController] R key pressed.", this);
 
         if (!isCamouflageMode)
         {
@@ -163,7 +166,7 @@ public class PlayerCamouflageController : MonoBehaviour
         bool shouldShowPanel = !drawingPanel.activeSelf;
         SetDrawingPanelActive(shouldShowPanel);
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[PlayerCamouflageController] Drawing Panel toggled: {(shouldShowPanel ? "Open" : "Closed")}.",
             this);
     }
@@ -182,13 +185,13 @@ public class PlayerCamouflageController : MonoBehaviour
             remainingTime = 0f;
             currentMode = CamouflageModeType.None;
 
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PlayerCamouflageController] Active Free camouflage cleared before enabling Timed camouflage.",
                 this);
         }
 
         isDangerCamouflageAvailable = true;
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             "[PlayerCamouflageController] Timed camouflage enabled.",
             this);
     }
@@ -208,7 +211,7 @@ public class PlayerCamouflageController : MonoBehaviour
         if (predatorEventManager != null &&
             predatorEventManager.IsEventActive)
         {
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PlayerCamouflageController] Free camouflage is unavailable during a Predator event.",
                 this);
             return;
@@ -216,7 +219,7 @@ public class PlayerCamouflageController : MonoBehaviour
 
         if (isCamouflageMode)
         {
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PlayerCamouflageController] Camouflage mode is already active.",
                 this);
             return;
@@ -252,7 +255,7 @@ public class PlayerCamouflageController : MonoBehaviour
         remainingTime = 0f;
         ClearTimerText();
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             "[PlayerCamouflageController] Free camouflage started.",
             this);
     }
@@ -329,7 +332,7 @@ public class PlayerCamouflageController : MonoBehaviour
 
         timedCamouflageCoroutine = null;
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[PlayerCamouflageController] Timed camouflage started after background capture. Time limit: {camouflageTimeLimit:F1} seconds.",
             this);
     }
@@ -337,7 +340,7 @@ public class PlayerCamouflageController : MonoBehaviour
     // Submit 버튼의 OnClick에는 DrawingTest.SubmitDrawing 대신 이 메서드를 연결합니다.
     public void ManualSubmit()
     {
-        Debug.Log("[PlayerCamouflageController] Manual Submit requested.", this);
+        GameplayDebug.Log(enableDebugLogs, "[PlayerCamouflageController] Manual Submit requested.", this);
 
         if (predatorEventManager != null &&
             predatorEventManager.IsEventActive)
@@ -391,7 +394,7 @@ public class PlayerCamouflageController : MonoBehaviour
 
         if (hadActiveCamouflage)
         {
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PlayerCamouflageController] Camouflage force cancelled.",
                 this);
         }
@@ -409,7 +412,7 @@ public class PlayerCamouflageController : MonoBehaviour
 
         if (hasSubmitted)
         {
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PlayerCamouflageController] Duplicate Submit ignored.",
                 this);
             return;
@@ -424,7 +427,7 @@ public class PlayerCamouflageController : MonoBehaviour
             predator != null &&
             predator.IsChasingOrThreatening;
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             shouldEvaluateCamouflage
                 ? "[PlayerCamouflageController] Combat camouflage submitted. Evaluating result."
                 : "[PlayerCamouflageController] Free camouflage submitted. Pattern applied without evaluation.",
@@ -469,7 +472,7 @@ public class PlayerCamouflageController : MonoBehaviour
                 predator.SetCamouflageSlowMode(false);
             }
 
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 $"[PlayerCamouflageController] Timed camouflage submitted ({(isAutomatic ? "Auto" : "Manual")}).",
                 this);
         }
@@ -541,7 +544,15 @@ public class PlayerCamouflageController : MonoBehaviour
 
     private void SetPlayerFreezeState(bool shouldFreeze)
     {
-        if (playerMovementController is PlayerController playerController)
+        PlayerController playerController =
+            playerMovementController as PlayerController;
+
+        if (playerController == null)
+        {
+            playerController = GetComponent<PlayerController>();
+        }
+
+        if (playerController != null)
         {
             playerController.SetMovementLocked(shouldFreeze);
             return;

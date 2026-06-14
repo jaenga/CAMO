@@ -11,7 +11,7 @@ public class ColorEyedropper : MonoBehaviour
     [SerializeField] private GameObject drawingPanel;
     [SerializeField] private DrawingTest drawingCanvas;
     [SerializeField] private Button eyedropperButton;
-    [SerializeField] private string buttonLabel = "Eyedropper";
+    [SerializeField] private bool enableDebugLogs;
 
     private GameObject inputBlocker;
     private bool isSampling;
@@ -42,13 +42,19 @@ public class ColorEyedropper : MonoBehaviour
                 drawingCanvas.transform.parent.gameObject;
         }
 
-        EnsureEyedropperButton();
         EnsureInputBlocker();
 
         if (eyedropperButton != null)
         {
             eyedropperButton.onClick.AddListener(
                 BeginEyedropperMode);
+        }
+        else
+        {
+            Debug.LogWarning(
+                "[ColorEyedropper] Eyedropper Button is not assigned. " +
+                "Connect the manually created button in the Inspector.",
+                this);
         }
     }
 
@@ -119,7 +125,7 @@ public class ColorEyedropper : MonoBehaviour
         inputBlocker.SetActive(true);
         inputBlocker.transform.SetAsLastSibling();
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             "[ColorEyedropper] Eyedropper mode started. Click a screen pixel.",
             this);
     }
@@ -173,7 +179,7 @@ public class ColorEyedropper : MonoBehaviour
         Destroy(screenshot);
         EndEyedropperMode();
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[ColorEyedropper] Sampled screen color: {sampledColor}.",
             this);
     }
@@ -229,68 +235,6 @@ public class ColorEyedropper : MonoBehaviour
         inputBlocker.SetActive(false);
     }
 
-    private void EnsureEyedropperButton()
-    {
-        if (eyedropperButton != null)
-        {
-            return;
-        }
-
-        Transform existingButton =
-            transform.Find("EyedropperButton");
-
-        if (existingButton != null)
-        {
-            eyedropperButton =
-                existingButton.GetComponent<Button>();
-            return;
-        }
-
-        GameObject buttonObject = new GameObject(
-            "EyedropperButton",
-            typeof(RectTransform),
-            typeof(CanvasRenderer),
-            typeof(Image),
-            typeof(Button));
-        buttonObject.layer = gameObject.layer;
-        buttonObject.transform.SetParent(transform, false);
-
-        RectTransform buttonRect =
-            buttonObject.GetComponent<RectTransform>();
-        buttonRect.anchorMin = new Vector2(0.5f, 0.5f);
-        buttonRect.anchorMax = new Vector2(0.5f, 0.5f);
-        buttonRect.anchoredPosition = new Vector2(445f, 280f);
-        buttonRect.sizeDelta = new Vector2(160f, 30f);
-
-        Image buttonImage = buttonObject.GetComponent<Image>();
-        buttonImage.color = Color.white;
-
-        eyedropperButton = buttonObject.GetComponent<Button>();
-        eyedropperButton.targetGraphic = buttonImage;
-
-        GameObject labelObject = new GameObject(
-            "Text",
-            typeof(RectTransform),
-            typeof(CanvasRenderer),
-            typeof(Text));
-        labelObject.layer = gameObject.layer;
-        labelObject.transform.SetParent(buttonObject.transform, false);
-
-        RectTransform labelRect =
-            labelObject.GetComponent<RectTransform>();
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = Vector2.zero;
-        labelRect.offsetMax = Vector2.zero;
-
-        Text label = labelObject.GetComponent<Text>();
-        label.font =
-            Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        label.text = buttonLabel;
-        label.alignment = TextAnchor.MiddleCenter;
-        label.color = Color.black;
-        label.raycastTarget = false;
-    }
 }
 
 public class ColorEyedropperClickCatcher :

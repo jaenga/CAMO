@@ -2,6 +2,7 @@ using UnityEngine;
 
 public class DangerZoneTrigger : MonoBehaviour
 {
+    [SerializeField] private bool enableDebugLogs;
     [SerializeField] private PredatorController predatorController;
 
     // 같은 DangerZone이 한 번만 작동했는지 저장합니다.
@@ -10,7 +11,7 @@ public class DangerZoneTrigger : MonoBehaviour
     private void OnTriggerEnter2D(Collider2D other)
     {
         // Trigger에 들어온 오브젝트를 Console에서 확인합니다.
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[DangerZoneTrigger] DangerZone entered - Object: '{other.name}', Tag: '{other.tag}'",
             this);
 
@@ -31,6 +32,6 @@ public class DangerZoneTrigger : MonoBehaviour
         }
 
         predatorController.StartChase();
-        Debug.Log("[DangerZoneTrigger] Predator chase started.", this);
+        GameplayDebug.Log(enableDebugLogs, "[DangerZoneTrigger] Predator chase started.", this);
     }
 }

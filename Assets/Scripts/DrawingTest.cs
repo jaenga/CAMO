@@ -15,6 +15,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     private RectTransform rectTransform;
     [SerializeField] private Slider brushSizeSlider;
     [SerializeField] private FlexibleColorPicker colorPicker;
+    [SerializeField] private RecentColorManager recentColorManager;
     [SerializeField] private Texture2D targetPattern;
     [SerializeField] private GameObject drawingPanel;
     [SerializeField] private GameObject gate;
@@ -26,8 +27,9 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     [SerializeField] private BackgroundSampler backgroundSampler;
     [Range(0.05f, 1.5f)]
     [SerializeField] private float colorTolerance = 0.5f;
-    [Range(0.01f, 1f)]
-    [SerializeField] private float requiredMatchRatio = 0.6f;
+    [Range(0f, 1f)]
+    [SerializeField] private float successSimilarityThreshold = 0.65f;
+    [SerializeField] private bool enableDebugLogs;
     private Color brushColor = new Color32(255, 105, 180, 255);
     private int brushSize = 2;
 
@@ -35,6 +37,8 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     private bool hasPreviousPixel;
     private bool isCanvasMirrored;
     private Texture2D runtimeAnswerTexture;
+    private RectInt maskContentRect;
+    private bool hasResolvedMaskContentRect;
     private readonly List<Color[]> undoHistory = new List<Color[]>();
 
     private void Awake()
@@ -45,6 +49,13 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         {
             backgroundSampler =
                 FindFirstObjectByType<BackgroundSampler>();
+        }
+
+        if (recentColorManager == null)
+        {
+            recentColorManager =
+                FindFirstObjectByType<RecentColorManager>(
+                    FindObjectsInactive.Include);
         }
     }
 
@@ -74,7 +85,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         {
             brushColor = colorPicker.color;
 
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 $"[DrawingTest] FlexibleColorPicker connected. Initial brush color: {brushColor}",
                 this);
         }
@@ -134,7 +145,12 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
 
         SaveUndoState();
         hasPreviousPixel = false;
-        Draw(eventData);
+
+        if (Draw(eventData) &&
+            recentColorManager != null)
+        {
+            recentColorManager.RecordColor(brushColor);
+        }
     }
 
     public void OnDrag(PointerEventData eventData)
@@ -187,7 +203,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
                 isFacingRight);
         }
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[DrawingTest] Canvas preview facing direction: {(isFacingRight ? "Right" : "Left")}.",
             this);
     }
@@ -396,7 +412,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         int previousBrushSize = brushSize;
         brushSize = Mathf.Clamp(Mathf.RoundToInt(value), 1, 10);
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[DrawingTest] Slider Value: {value:F2}, Brush Size: {previousBrushSize} -> {brushSize}",
             this);
     }
@@ -405,7 +421,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     {
         brushColor = color;
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[DrawingTest] Brush color updated from FlexibleColorPicker: {brushColor}",
             this);
     }
@@ -429,7 +445,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         runtimeAnswerTexture = newAnswer;
         targetPattern = newAnswer;
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[DrawingTest] Answer texture updated: {newAnswer.width}x{newAnswer.height}",
             this);
     }
@@ -444,7 +460,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
             return null;
         }
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[DrawingTest] Current drawing texture requested: {texture.width}x{texture.height}",
             this);
 
@@ -470,7 +486,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
             if (gate != null)
             {
                 gate.SetActive(false);
-                Debug.Log(
+                GameplayDebug.Log(enableDebugLogs,
                     $"[DrawingTest] Gate '{gate.name}' opened after result: {result}.",
                     gate);
             }
@@ -490,7 +506,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         }
         else
         {
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 $"[DrawingTest] Submission result '{result}' treated as failure. Gate remains closed.",
                 this);
 
@@ -550,7 +566,18 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
                 result == "Success";
 
             Debug.Log(
-                $"[DrawingTest] Masked Similarity Score: {similarityScore:F2} / 100 - {result}. Match ratio: {matchRatio:P1}, Required: {requiredMatchRatio:P1}, Compared pixels: {comparedPixelCount}, Color tolerance: {colorTolerance:F2}, Success: {isSuccess}",
+                $"Similarity: {similarityScore / 100f:F2}",
+                this);
+            Debug.Log(
+                $"Threshold: {successSimilarityThreshold:F2}",
+                this);
+            Debug.Log(
+                $"Result: {(isSuccess ? "Success" : "Fail")}",
+                this);
+
+            GameplayDebug.Log(
+                enableDebugLogs,
+                $"[DrawingTest] Matched pixels: {matchRatio:P1}, Compared pixels: {comparedPixelCount}, Color tolerance: {colorTolerance:F2}, Detailed result: {result}",
                 this);
         }
         catch (UnityException exception)
@@ -581,7 +608,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
             {
                 float u = (x + 0.5f) / ComparisonSize;
 
-                if (!IsBodyMaskPixel(SampleTexture(maskTexture, u, v)) ||
+                if (!IsBodyMaskPixel(SampleMaskTexture(u, v)) ||
                     IsLinePixel(u, v))
                 {
                     continue;
@@ -629,17 +656,71 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
 
         matchRatio =
             matchedPixelCount / (float)comparedPixelCount;
-        float averageSimilarity =
-            totalSimilarity / comparedPixelCount;
-        float requiredRatio =
-            Mathf.Clamp(requiredMatchRatio, 0.01f, 1f);
-        float coverageFactor =
-            Mathf.Clamp01(matchRatio / requiredRatio);
 
         return Mathf.Clamp(
-            averageSimilarity * coverageFactor,
+            totalSimilarity / comparedPixelCount,
             0f,
             100f);
+    }
+
+    private Color SampleMaskTexture(float u, float v)
+    {
+        ResolveMaskContentRect();
+
+        int x = Mathf.Clamp(
+            maskContentRect.xMin +
+            Mathf.FloorToInt(u * maskContentRect.width),
+            maskContentRect.xMin,
+            maskContentRect.xMax - 1);
+        int y = Mathf.Clamp(
+            maskContentRect.yMin +
+            Mathf.FloorToInt(v * maskContentRect.height),
+            maskContentRect.yMin,
+            maskContentRect.yMax - 1);
+
+        return maskTexture.GetPixel(x, y);
+    }
+
+    private void ResolveMaskContentRect()
+    {
+        if (hasResolvedMaskContentRect)
+        {
+            return;
+        }
+
+        hasResolvedMaskContentRect = true;
+        int minX = maskTexture.width;
+        int minY = maskTexture.height;
+        int maxX = -1;
+        int maxY = -1;
+
+        for (int y = 0; y < maskTexture.height; y++)
+        {
+            for (int x = 0; x < maskTexture.width; x++)
+            {
+                if (!IsBodyMaskPixel(maskTexture.GetPixel(x, y)))
+                {
+                    continue;
+                }
+
+                minX = Mathf.Min(minX, x);
+                minY = Mathf.Min(minY, y);
+                maxX = Mathf.Max(maxX, x);
+                maxY = Mathf.Max(maxY, y);
+            }
+        }
+
+        maskContentRect = maxX >= minX && maxY >= minY
+            ? new RectInt(
+                minX,
+                minY,
+                maxX - minX + 1,
+                maxY - minY + 1)
+            : new RectInt(
+                0,
+                0,
+                maskTexture.width,
+                maskTexture.height);
     }
 
     private Color SampleTexture(
@@ -755,7 +836,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         }
 
         drawingPanel.SetActive(false);
-        Debug.Log($"[DrawingTest] Drawing Panel '{drawingPanel.name}' hidden.", this);
+        GameplayDebug.Log(enableDebugLogs, $"[DrawingTest] Drawing Panel '{drawingPanel.name}' hidden.", this);
     }
 
     private Texture2D DownsampleTexture(Texture source)
@@ -872,17 +953,21 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
 
     private string GetSimilarityResult(float similarityScore)
     {
-        if (similarityScore >= 80f)
+        float normalizedScore = similarityScore / 100f;
+        float threshold =
+            Mathf.Clamp01(successSimilarityThreshold);
+
+        if (normalizedScore >= Mathf.Min(1f, threshold + 0.2f))
         {
             return "Perfect";
         }
 
-        if (similarityScore >= 60f)
+        if (normalizedScore >= threshold)
         {
             return "Success";
         }
 
-        if (similarityScore >= 40f)
+        if (normalizedScore >= Mathf.Max(0f, threshold - 0.2f))
         {
             return "Danger";
         }
@@ -904,12 +989,12 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         hasPreviousPixel = false;
     }
 
-    private void Draw(PointerEventData eventData)
+    private bool Draw(PointerEventData eventData)
     {
         if (!TryGetTexturePixel(eventData, out Vector2Int currentPixel))
         {
             hasPreviousPixel = false;
-            return;
+            return false;
         }
 
         if (hasPreviousPixel)
@@ -924,6 +1009,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         previousPixel = currentPixel;
         hasPreviousPixel = true;
         texture.Apply();
+        return true;
     }
 
     private bool TryGetTexturePixel(PointerEventData eventData, out Vector2Int pixel)

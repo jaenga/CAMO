@@ -31,6 +31,7 @@ public class PredatorController : MonoBehaviour
     [Header("Debug")]
     [SerializeField] private PredatorState currentState = PredatorState.Hidden;
     [SerializeField] private bool requireCamouflageToSurvive;
+    [SerializeField] private bool enableDebugLogs;
 
     private SpriteRenderer spriteRenderer;
     private Animator animator;
@@ -137,7 +138,7 @@ public class PredatorController : MonoBehaviour
         }
 
         ChangeState(PredatorState.Chase);
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[PredatorController] Predator chase started. Require camouflage: {requireCamouflageToSurvive.ToString().ToLowerInvariant()}. Duration: {chaseDuration:F1} seconds.",
             this);
     }
@@ -148,7 +149,7 @@ public class PredatorController : MonoBehaviour
 
         if (currentState == PredatorState.Hidden)
         {
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PredatorController] SearchAndLeave ignored because Predator is already hidden.",
                 this);
             return;
@@ -182,14 +183,14 @@ public class PredatorController : MonoBehaviour
         {
             if (requireCamouflageToSurvive)
             {
-                Debug.Log(
+                GameplayDebug.Log(enableDebugLogs,
                     "[PredatorController] Chase expired while camouflage required. Predator attacks.",
                     this);
                 AttackPlayer();
                 return;
             }
 
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PredatorController] Chase time expired. Predator will search and leave.",
                 this);
             SearchAndLeave();
@@ -200,7 +201,7 @@ public class PredatorController : MonoBehaviour
     {
         if (!requireCamouflageToSurvive)
         {
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PredatorController] Camouflage result ignored because this Chase does not require camouflage.",
                 this);
             return;
@@ -208,14 +209,14 @@ public class PredatorController : MonoBehaviour
 
         if (isSuccess)
         {
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PredatorController] Submit success. Predator will search and leave.",
                 this);
             SearchAndLeave();
             return;
         }
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             "[PredatorController] Submit failed. Predator attacks.",
             this);
         AttackPlayer();
@@ -225,7 +226,7 @@ public class PredatorController : MonoBehaviour
     {
         isCamouflageSlowMode = isEnabled;
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[PredatorController] Camouflage slow mode: {(isEnabled ? "Enabled" : "Disabled")}. Chase speed: {GetCurrentChaseSpeed():F1}",
             this);
     }
@@ -342,13 +343,13 @@ public class PredatorController : MonoBehaviour
     {
         requireCamouflageToSurvive = false;
         ChangeState(PredatorState.Attack);
-        Debug.Log("[Game Over] Predator caught the player.", this);
+        GameplayDebug.Log(enableDebugLogs, "[Game Over] Predator caught the player.", this);
 
         if (spawnPoint != null)
         {
             // 체력 감소 없이 Player를 시작 위치로 즉시 되돌립니다.
             player.position = spawnPoint.position;
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 $"[PredatorController] Player returned to Spawn Point '{spawnPoint.name}'.",
                 player);
         }
@@ -362,7 +363,7 @@ public class PredatorController : MonoBehaviour
         if (playerCamouflageController != null)
         {
             playerCamouflageController.ForceCancelCamouflage();
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PredatorController] Player camouflage force cancelled after Attack.",
                 playerCamouflageController);
         }
@@ -379,7 +380,7 @@ public class PredatorController : MonoBehaviour
     private IEnumerator SearchAndLeaveRoutine()
     {
         ChangeState(PredatorState.Search);
-        Debug.Log("Predator is searching...", this);
+        GameplayDebug.Log(enableDebugLogs, "Predator is searching...", this);
 
         // Search 상태에서는 이동을 멈추고 주변을 찾는 시간을 가집니다.
         yield return new WaitForSeconds(searchDuration);
@@ -389,7 +390,7 @@ public class PredatorController : MonoBehaviour
         searchCoroutine = null;
         HidePredator();
 
-        Debug.Log("[PredatorController] Predator left the scene.", this);
+        GameplayDebug.Log(enableDebugLogs, "[PredatorController] Predator left the scene.", this);
     }
 
     private void HidePredator()
@@ -405,7 +406,7 @@ public class PredatorController : MonoBehaviour
         if (playerCamouflageController != null)
         {
             playerCamouflageController.ForceCancelCamouflage();
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PredatorController] Player camouflage force cancelled because predator left.",
                 playerCamouflageController);
         }
@@ -446,7 +447,7 @@ public class PredatorController : MonoBehaviour
         PredatorState previousState = currentState;
         currentState = nextState;
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[PredatorController] State changed: {previousState} -> {currentState}",
             this);
     }

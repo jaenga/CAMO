@@ -3,6 +3,7 @@ using UnityEngine.InputSystem;
 
 public class PuzzleEventTrigger : MonoBehaviour
 {
+    [SerializeField] private bool enableDebugLogs;
     [Header("Predator Event")]
     [Tooltip("퍼즐 완료 후 이벤트를 시작할 PredatorEventManager를 연결합니다.")]
     [SerializeField] private PredatorEventManager predatorEventManager;
@@ -28,7 +29,7 @@ public class PuzzleEventTrigger : MonoBehaviour
         // Player가 근처에 있을 때 E 키를 누르면 퍼즐을 완료합니다.
         if (Keyboard.current.eKey.wasPressedThisFrame)
         {
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PuzzleEventTrigger] E key pressed near the puzzle.",
                 this);
             CompletePuzzle();
@@ -55,7 +56,7 @@ public class PuzzleEventTrigger : MonoBehaviour
             playerCamouflageController.SetPuzzleInteractionActive(true);
         }
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[PuzzleEventTrigger] Player '{other.name}' entered the puzzle area.",
             this);
     }
@@ -74,7 +75,7 @@ public class PuzzleEventTrigger : MonoBehaviour
             playerCamouflageController.SetPuzzleInteractionActive(false);
         }
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             $"[PuzzleEventTrigger] Player '{other.name}' left the puzzle area.",
             this);
     }
@@ -84,14 +85,14 @@ public class PuzzleEventTrigger : MonoBehaviour
     {
         if (isPuzzleCompleted)
         {
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PuzzleEventTrigger] CompletePuzzle ignored because this puzzle is already completed.",
                 this);
             return;
         }
 
         isPuzzleCompleted = true;
-        Debug.Log("[PuzzleEventTrigger] Puzzle completed.", this);
+        GameplayDebug.Log(enableDebugLogs, "[PuzzleEventTrigger] Puzzle completed.", this);
 
         if (predatorEventManager == null)
         {
@@ -108,7 +109,7 @@ public class PuzzleEventTrigger : MonoBehaviour
         else
         {
             predatorEventManager.StartPredatorEvent();
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PuzzleEventTrigger] Predator event requested.",
                 this);
         }

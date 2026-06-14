@@ -21,6 +21,9 @@ public class PlayerCamouflageApplier : MonoBehaviour
 
     [SerializeField] private bool keepOriginalLine = true;
 
+    [Header("Debug")]
+    [SerializeField] private bool enableDebugLogs;
+
     private Sprite camouflageSprite;
     private Texture2D camouflageTexture;
     private bool originalRendererWasEnabled;
@@ -44,7 +47,7 @@ public class PlayerCamouflageApplier : MonoBehaviour
 
         EnsureOverlayRenderer();
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             "[PlayerCamouflageApplier] Player original sprite preserved.",
             this);
     }
@@ -141,10 +144,10 @@ public class PlayerCamouflageApplier : MonoBehaviour
         overlayRenderer.gameObject.SetActive(true);
         HideOriginalRenderer();
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             "[PlayerCamouflageApplier] Camouflage texture applied to overlay.",
             this);
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             "[PlayerCamouflageApplier] Player original sprite hidden while camouflage is active.",
             this);
     }
@@ -278,7 +281,7 @@ public class PlayerCamouflageApplier : MonoBehaviour
 
         ReleaseGeneratedCamouflage();
 
-        Debug.Log(
+        GameplayDebug.Log(enableDebugLogs,
             "[PlayerCamouflageApplier] Player camouflage reset.",
             this);
     }
@@ -330,6 +333,9 @@ public class PlayerCamouflageApplier : MonoBehaviour
             yield break;
         }
 
+        // 페이드 중에는 원본 Player를 유지하고 위장 오버레이만 투명해집니다.
+        RestoreOriginalRenderer();
+
         Color originalColor = overlayRenderer.color;
         float elapsed = 0f;
 
@@ -367,7 +373,7 @@ public class PlayerCamouflageApplier : MonoBehaviour
             overlayObject.transform.SetParent(transform, false);
             overlayRenderer = overlayObject.AddComponent<SpriteRenderer>();
 
-            Debug.Log(
+            GameplayDebug.Log(enableDebugLogs,
                 "[PlayerCamouflageApplier] Camouflage overlay created.",
                 this);
         }
