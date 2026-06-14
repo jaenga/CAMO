@@ -29,6 +29,16 @@ public class PlayerCamouflageController : MonoBehaviour
     [Tooltip("Submit된 그림을 Player 외형에 적용할 컴포넌트를 연결합니다.")]
     [SerializeField] private PlayerCamouflageApplier camouflageApplier;
 
+    [Header("Camouflage Freeze")]
+    [Min(0f)]
+    [SerializeField] private float camouflageFreezeDuration = 5f;
+
+    [Tooltip("위장 판정 중 비활성화할 PlayerController를 연결합니다.")]
+    [SerializeField] private MonoBehaviour playerMovementController;
+
+    [Tooltip("위장 판정 중 정지할 Player Animator를 연결합니다.")]
+    [SerializeField] private Animator playerAnimator;
+
     [Header("Predator")]
     [Tooltip("Timed Camouflage 중 추격 속도를 낮출 Predator를 연결합니다.")]
     [SerializeField] private PredatorController predator;
@@ -46,6 +56,7 @@ public class PlayerCamouflageController : MonoBehaviour
     private bool isPuzzleInteractionActive;
     private bool suppressInputUntilEReleased;
     private Coroutine timedCamouflageCoroutine;
+    private Coroutine camouflageFreezeCoroutine;
     private float remainingTime;
 
     private void Start()
@@ -306,9 +317,16 @@ public class PlayerCamouflageController : MonoBehaviour
             isCamouflageMode ||
             isTimedCamouflageActive ||
             isTimerRunning ||
-            isDangerCamouflageAvailable;
+            isDangerCamouflageAvailable ||
+            camouflageFreezeCoroutine != null;
 
         StopTimedCamouflageCoroutine();
+        StopCamouflageFreeze();
+
+        if (camouflageApplier != null)
+        {
+            camouflageApplier.ResetCamouflage();
+        }
 
         isCamouflageMode = false;
         isTimedCamouflageActive = false;
@@ -371,28 +389,24 @@ public class PlayerCamouflageController : MonoBehaviour
 
         if (drawingManager != null)
         {
+            Texture2D drawingTexture =
+                drawingManager.GetCurrentDrawingTexture();
+
+            if (camouflageApplier != null)
+            {
+                camouflageApplier.ApplyCamouflage(drawingTexture);
+                StartCamouflageFreeze();
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "[PlayerCamouflageController] PlayerCamouflageApplier is not assigned.",
+                    this);
+            }
+
             if (shouldEvaluateCamouflage)
             {
                 drawingManager.SubmitDrawing();
-            }
-
-            // Fail로 Attack이 발생해 ForceCancel된 경우에는 외형을 적용하지 않습니다.
-            if (isCamouflageMode &&
-                currentMode == submittedMode)
-            {
-                Texture2D drawingTexture =
-                    drawingManager.GetCurrentDrawingTexture();
-
-                if (camouflageApplier != null)
-                {
-                    camouflageApplier.ApplyCamouflage(drawingTexture);
-                }
-                else
-                {
-                    Debug.LogWarning(
-                        "[PlayerCamouflageController] PlayerCamouflageApplier is not assigned.",
-                        this);
-                }
             }
         }
         else
@@ -446,6 +460,83 @@ public class PlayerCamouflageController : MonoBehaviour
 
         StopCoroutine(timedCamouflageCoroutine);
         timedCamouflageCoroutine = null;
+    }
+
+    private void StartCamouflageFreeze()
+    {
+        StopCamouflageFreeze();
+        camouflageFreezeCoroutine =
+            StartCoroutine(CamouflageFreezeRoutine());
+    }
+
+    private IEnumerator CamouflageFreezeRoutine()
+    {
+        SetPlayerFreezeState(true);
+
+        yield return new WaitForSeconds(camouflageFreezeDuration);
+
+        if (camouflageApplier != null)
+        {
+            camouflageApplier.ResetCamouflage();
+        }
+
+        SetPlayerFreezeState(false);
+        camouflageFreezeCoroutine = null;
+    }
+
+    private void StopCamouflageFreeze()
+    {
+        if (camouflageFreezeCoroutine != null)
+        {
+            StopCoroutine(camouflageFreezeCoroutine);
+            camouflageFreezeCoroutine = null;
+        }
+
+        SetPlayerFreezeState(false);
+    }
+
+    private void SetPlayerFreezeState(bool shouldFreeze)
+    {
+        if (shouldFreeze)
+        {
+            Rigidbody2D playerRigidbody = GetPlayerRigidbody();
+
+            if (playerRigidbody != null)
+            {
+                playerRigidbody.linearVelocity = Vector2.zero;
+            }
+        }
+
+        if (playerAnimator != null)
+        {
+            playerAnimator.enabled = !shouldFreeze;
+        }
+
+        if (playerMovementController != null)
+        {
+            playerMovementController.enabled = !shouldFreeze;
+        }
+    }
+
+    private Rigidbody2D GetPlayerRigidbody()
+    {
+        if (playerMovementController != null)
+        {
+            Rigidbody2D movementRigidbody =
+                playerMovementController.GetComponent<Rigidbody2D>();
+
+            if (movementRigidbody != null)
+            {
+                return movementRigidbody;
+            }
+        }
+
+        if (playerAnimator != null)
+        {
+            return playerAnimator.GetComponent<Rigidbody2D>();
+        }
+
+        return null;
     }
 
     private void SetDrawingPanelActive(bool isActive)

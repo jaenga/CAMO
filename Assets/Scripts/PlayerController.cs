@@ -22,6 +22,7 @@ public class PlayerController : MonoBehaviour
     private Animator animator;
     private float horizontalInput;
     private bool isGrounded;
+    private bool isExternallyGrounded;
     private Vector3 originalScale;
 
     private void Awake()
@@ -34,7 +35,7 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
-        isGrounded = CheckGrounded();
+        isGrounded = CheckGrounded() || isExternallyGrounded;
 
         ReadMovementInput();
 
@@ -123,6 +124,11 @@ public class PlayerController : MonoBehaviour
             Mathf.Abs(originalScale.x) * direction,
             originalScale.y,
             originalScale.z);
+    }
+
+    public void SetExternalGrounded(bool value)
+    {
+        isExternallyGrounded = value;
     }
 
     private bool CheckGrounded()

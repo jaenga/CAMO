@@ -19,6 +19,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     [SerializeField] private GameObject drawingPanel;
     [SerializeField] private GameObject gate;
     [SerializeField] private PredatorController predatorController;
+    [SerializeField] private RawImage chameleonPreviewImage;
     [Range(0.05f, 1.5f)]
     [SerializeField] private float colorTolerance = 0.5f;
     private Color brushColor = new Color32(255, 105, 180, 255);
@@ -41,7 +42,12 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         };
 
         rawImage.texture = texture;
-        FillCanvasWhite();
+        FillCanvasTransparent();
+
+        if (chameleonPreviewImage != null)
+        {
+            chameleonPreviewImage.gameObject.SetActive(false);
+        }
 
         if (colorPicker != null)
         {
@@ -113,6 +119,20 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     public void OnPointerUp(PointerEventData eventData)
     {
         hasPreviousPixel = false;
+    }
+
+    public void ToggleCanvasPreviewMode()
+    {
+        if (chameleonPreviewImage == null)
+        {
+            Debug.LogWarning(
+                "[DrawingTest] Chameleon Preview Image is not assigned.",
+                this);
+            return;
+        }
+
+        GameObject previewObject = chameleonPreviewImage.gameObject;
+        previewObject.SetActive(!previewObject.activeSelf);
     }
 
     public void SetSmallBrush()
@@ -281,7 +301,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         }
 
         SaveUndoState();
-        FillCanvasWhite();
+        FillCanvasTransparent();
     }
 
     public void Undo()
@@ -451,13 +471,13 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         return "Fail";
     }
 
-    private void FillCanvasWhite()
+    private void FillCanvasTransparent()
     {
         Color[] pixels = new Color[TextureSize * TextureSize];
 
         for (int i = 0; i < pixels.Length; i++)
         {
-            pixels[i] = Color.white;
+            pixels[i] = Color.clear;
         }
 
         texture.SetPixels(pixels);

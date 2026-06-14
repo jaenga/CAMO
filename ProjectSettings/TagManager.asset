@@ -13,9 +13,9 @@ TagManager:
   - UI
   - Ground
   - Background
-  - 
-  - 
-  - 
+  - OneWayPlatform
+  - DeadZone
+  - Wall
   - 
   - 
   - 

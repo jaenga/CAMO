@@ -177,6 +177,22 @@ public class PlayerCamouflageApplier : MonoBehaviour
                     continue;
                 }
 
+                Color maskColor =
+                    SampleTextureByUv(bodyMaskTexture, u, v);
+                Color resultColor = originalColor;
+
+                if (IsBodyMaskPixel(maskColor))
+                {
+                    Color drawingColor =
+                        SampleTextureByUv(drawingTexture, u, v);
+
+                    if (drawingColor.a > 0.01f)
+                    {
+                        drawingColor.a *= originalColor.a;
+                        resultColor = drawingColor;
+                    }
+                }
+
                 if (keepOriginalLine &&
                     lineTexture != null)
                 {
@@ -185,25 +201,11 @@ public class PlayerCamouflageApplier : MonoBehaviour
 
                     if (lineColor.a > 0.01f)
                     {
-                        resultPixels[resultIndex] = lineColor;
-                        continue;
+                        resultColor = lineColor;
                     }
                 }
 
-                Color maskColor =
-                    SampleTextureByUv(bodyMaskTexture, u, v);
-
-                if (IsBodyMaskPixel(maskColor))
-                {
-                    Color drawingColor =
-                        SampleTextureByUv(drawingTexture, u, v);
-                    drawingColor.a *= originalColor.a;
-                    resultPixels[resultIndex] = drawingColor;
-                }
-                else
-                {
-                    resultPixels[resultIndex] = originalColor;
-                }
+                resultPixels[resultIndex] = resultColor;
             }
         }
 
