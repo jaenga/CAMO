@@ -2,6 +2,7 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class PlayerCamouflageController : MonoBehaviour
 {
@@ -18,6 +19,13 @@ public class PlayerCamouflageController : MonoBehaviour
 
     [Tooltip("Timed Camouflage의 남은 시간을 표시할 TMP Text를 연결합니다.")]
     [SerializeField] private TMP_Text timerText;
+
+    [Tooltip("Timed Camouflage가 진행되는 동안 점멸할 경고 이미지를 연결합니다.")]
+    [SerializeField] private Image timedWarningImage;
+
+    [Min(0.1f)]
+    [Tooltip("경고 이미지가 한 번 사라졌다 나타나는 데 걸리는 시간입니다.")]
+    [SerializeField] private float warningPulseDuration = 1.2f;
 
     [Header("Drawing")]
     [Tooltip("SubmitDrawing()을 가진 DrawingTest 컴포넌트를 연결합니다.")]
@@ -51,7 +59,7 @@ public class PlayerCamouflageController : MonoBehaviour
 
     [Header("Timer")]
     [Min(0.1f)]
-    public float camouflageTimeLimit = 30f;
+    public float camouflageTimeLimit = 10f;
 
     [Header("Debug")]
     [SerializeField] private bool enableDebugLogs;
@@ -67,6 +75,7 @@ public class PlayerCamouflageController : MonoBehaviour
     private Coroutine timedCamouflageCoroutine;
     private Coroutine camouflageFreezeCoroutine;
     private float remainingTime;
+    private Color warningImageColor = Color.white;
 
     private void Start()
     {
@@ -79,10 +88,16 @@ public class PlayerCamouflageController : MonoBehaviour
         ResetCamouflageState();
         SetDrawingPanelActive(false);
         ClearTimerText();
+        InitializeWarningImage();
 
         GameplayDebug.Log(enableDebugLogs,
             "[PlayerCamouflageController] Ready. Free camouflage is available.",
             this);
+    }
+
+    private void OnDisable()
+    {
+        SetWarningImageActive(false);
     }
 
     private void Update()
@@ -98,7 +113,7 @@ public class PlayerCamouflageController : MonoBehaviour
 
         // Timed Camouflage는 패널을 닫아도 계속 진행됩니다.
         remainingTime = Mathf.Max(remainingTime - Time.deltaTime, 0f);
-        UpdateTimerText();
+        UpdateWarningImagePulse();
 
         if (remainingTime <= 0f)
         {
@@ -187,6 +202,7 @@ public class PlayerCamouflageController : MonoBehaviour
             // Free 모드는 제출하지 않고 UI와 상태만 종료합니다.
             SetDrawingPanelActive(false);
             ClearTimerText();
+            SetWarningImageActive(false);
 
             isCamouflageMode = false;
             isTimerRunning = false;
@@ -263,6 +279,7 @@ public class PlayerCamouflageController : MonoBehaviour
         isTimerRunning = false;
         remainingTime = 0f;
         ClearTimerText();
+        SetWarningImageActive(false);
 
         GameplayDebug.Log(enableDebugLogs,
             "[PlayerCamouflageController] Free camouflage started.",
@@ -277,6 +294,7 @@ public class PlayerCamouflageController : MonoBehaviour
         remainingTime = 0f;
         SetDrawingPanelActive(false);
         ClearTimerText();
+        SetWarningImageActive(false);
 
         StopTimedCamouflageCoroutine();
         timedCamouflageCoroutine =
@@ -326,7 +344,7 @@ public class PlayerCamouflageController : MonoBehaviour
         SetDrawingPanelActive(true);
         isTimerRunning = true;
         remainingTime = camouflageTimeLimit;
-        UpdateTimerText();
+        SetWarningImageActive(true);
 
         if (predator != null)
         {
@@ -396,6 +414,7 @@ public class PlayerCamouflageController : MonoBehaviour
 
         SetDrawingPanelActive(false);
         ClearTimerText();
+        SetWarningImageActive(false);
 
         if (predator != null)
         {
@@ -489,6 +508,7 @@ public class PlayerCamouflageController : MonoBehaviour
 
         SetDrawingPanelActive(false);
         ClearTimerText();
+        SetWarningImageActive(false);
         isCamouflageMode = false;
         remainingTime = 0f;
         currentMode = CamouflageModeType.None;
@@ -649,5 +669,44 @@ public class PlayerCamouflageController : MonoBehaviour
         {
             timerText.text = string.Empty;
         }
+    }
+
+    private void InitializeWarningImage()
+    {
+        if (timedWarningImage == null)
+        {
+            return;
+        }
+
+        warningImageColor = timedWarningImage.color;
+        SetWarningImageActive(false);
+    }
+
+    private void UpdateWarningImagePulse()
+    {
+        if (timedWarningImage == null)
+        {
+            return;
+        }
+
+        float duration = Mathf.Max(warningPulseDuration, 0.1f);
+        float pulse = Mathf.PingPong(Time.unscaledTime * 2f / duration, 1f);
+        float alpha = Mathf.SmoothStep(0f, warningImageColor.a, pulse);
+        Color color = warningImageColor;
+        color.a = alpha;
+        timedWarningImage.color = color;
+    }
+
+    private void SetWarningImageActive(bool isActive)
+    {
+        if (timedWarningImage == null)
+        {
+            return;
+        }
+
+        Color color = warningImageColor;
+        color.a = isActive ? warningImageColor.a : 0f;
+        timedWarningImage.color = color;
+        timedWarningImage.gameObject.SetActive(isActive);
     }
 }

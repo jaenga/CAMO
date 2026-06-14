@@ -12,7 +12,7 @@ public class PredatorEventManager : MonoBehaviour
     [Min(0f)]
     [SerializeField] private float maxHideCountdownTime = 10f;
     [Min(0.1f)]
-    [SerializeField] private float drawingLimitTime = 30f;
+    [SerializeField] private float drawingLimitTime = 60f;
     [Min(0f)]
     [FormerlySerializedAs("postDrawingFreezeTime")]
     [SerializeField] private float resultAnimationDuration = 5f;
@@ -44,6 +44,8 @@ public class PredatorEventManager : MonoBehaviour
     [SerializeField] private float predatorMoveRange = 2f;
     [Min(0f)]
     [SerializeField] private float predatorMinimumDistance = 2.5f;
+    [Min(0f)]
+    [SerializeField] private float successHoldDistance = 3.5f;
 
     [Header("UI")]
     [SerializeField] private TMP_Text warningText;
@@ -298,17 +300,17 @@ public class PredatorEventManager : MonoBehaviour
 
         if (predator != null)
         {
-            KeepPredatorAwayFromPlayer();
-
             if (isSuccess)
             {
+                PlacePredatorNearPlayer();
                 predator.PlayStop();
                 GameplayDebug.Log(enableDebugLogs,
-                    "[PredatorEventManager] Camouflage succeeded. Holding the predator stop animation.",
+                    "[PredatorEventManager] Camouflage succeeded. Holding the predator near the player.",
                     this);
             }
             else
             {
+                KeepPredatorAwayFromPlayer();
                 SoundManager.Instance?.PlayFail();
                 predator.PlayFly();
                 GameplayDebug.Log(enableDebugLogs,
@@ -325,7 +327,8 @@ public class PredatorEventManager : MonoBehaviour
         if (camouflageApplier != null)
         {
             yield return camouflageApplier.FadeOutCamouflage(
-                camouflageFadeDuration);
+                camouflageFadeDuration,
+                isSuccess);
         }
 
         if (predator != null)
@@ -383,7 +386,8 @@ public class PredatorEventManager : MonoBehaviour
         if (camouflageApplier != null)
         {
             yield return camouflageApplier.FadeOutCamouflage(
-                camouflageFadeDuration);
+                camouflageFadeDuration,
+                isSuccess);
         }
 
         if (isSuccess)
@@ -611,6 +615,32 @@ public class PredatorEventManager : MonoBehaviour
         predator.SetFacingDirection(
             playerTransform.position.x -
             predator.transform.position.x);
+    }
+
+    private void PlacePredatorNearPlayer()
+    {
+        Transform playerTransform = GetPlayerTransform();
+
+        if (predator == null ||
+            playerTransform == null)
+        {
+            return;
+        }
+
+        float side = predator.transform.position.x <
+                     playerTransform.position.x
+            ? -1f
+            : 1f;
+        float holdDistance = Mathf.Max(
+            successHoldDistance,
+            predatorMinimumDistance);
+        Vector3 playerPosition = playerTransform.position;
+
+        predator.transform.position = new Vector3(
+            playerPosition.x + side * holdDistance,
+            playerPosition.y + spawnYOffset,
+            predator.transform.position.z);
+        predator.SetFacingDirection(-side);
     }
 
     private Vector3 ClampPredatorDistance(

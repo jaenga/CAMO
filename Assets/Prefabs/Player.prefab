@@ -360,11 +360,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCamouflageController
   drawingPanel: {fileID: 0}
   timerText: {fileID: 0}
+  timedWarningImage: {fileID: 0}
+  warningPulseDuration: 1.2
   drawingManager: {fileID: 0}
   backgroundSampler: {fileID: 0}
   camouflageApplier: {fileID: 7575890713810920316}
   predator: {fileID: 0}
-  camouflageTimeLimit: 30
+  camouflageTimeLimit: 10
 --- !u!114 &7575890713810920316
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -14,6 +14,7 @@ public class IntroManager : MonoBehaviour
     [Header("Intro UI")]
     [SerializeField] private TMP_Text pressAnyKeyText;
     [SerializeField] private CanvasGroup logoCanvasGroup;
+    [SerializeField] private IntroPigeonFlyBy introPigeon;
 
     [Header("Camera")]
     [SerializeField] private Transform introCameraStart;
@@ -22,8 +23,10 @@ public class IntroManager : MonoBehaviour
     [Header("Timing")]
     [Min(0.01f)]
     [SerializeField] private float blinkInterval = 0.5f;
+    [Min(0f)]
+    [SerializeField] private float introHoldDuration = 2f;
     [Min(0.01f)]
-    [SerializeField] private float logoFadeDuration = 0.5f;
+    [SerializeField] private float logoFadeDuration = 2.5f;
 
     private bool hasStartedTransition;
     private float nextBlinkTime;
@@ -81,6 +84,11 @@ public class IntroManager : MonoBehaviour
         if (pressAnyKeyText != null)
         {
             pressAnyKeyText.gameObject.SetActive(true);
+        }
+
+        if (introPigeon != null)
+        {
+            introPigeon.gameObject.SetActive(false);
         }
 
         nextBlinkTime =
@@ -164,7 +172,15 @@ public class IntroManager : MonoBehaviour
             pressAnyKeyText.gameObject.SetActive(false);
         }
 
-        float duration = Mathf.Max(logoFadeDuration, 0.01f);
+        introPigeon?.Play(mainCamera);
+
+        float holdDuration = Mathf.Max(introHoldDuration, 0f);
+        float fadeDuration = Mathf.Max(logoFadeDuration, 0.01f);
+        float duration = Mathf.Max(
+            holdDuration + fadeDuration,
+            introPigeon != null
+                ? introPigeon.FlightDuration
+                : 0.01f);
         float elapsed = 0f;
         float startAlpha =
             logoCanvasGroup != null ? logoCanvasGroup.alpha : 1f;
@@ -184,8 +200,10 @@ public class IntroManager : MonoBehaviour
 
             if (logoCanvasGroup != null)
             {
+                float fadeProgress = Mathf.Clamp01(
+                    (elapsed - holdDuration) / fadeDuration);
                 logoCanvasGroup.alpha =
-                    Mathf.Lerp(startAlpha, 0f, progress);
+                    Mathf.Lerp(startAlpha, 0f, fadeProgress);
             }
 
             if (mainCamera != null &&
@@ -222,6 +240,8 @@ public class IntroManager : MonoBehaviour
         {
             introPanel.SetActive(false);
         }
+
+        introPigeon?.Stop();
 
         if (gameplayUI != null)
         {
