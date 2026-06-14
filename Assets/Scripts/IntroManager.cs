@@ -5,6 +5,8 @@ using UnityEngine.InputSystem;
 
 public class IntroManager : MonoBehaviour
 {
+    private static bool skipNextIntro;
+
     [Header("Panels")]
     [SerializeField] private GameObject introPanel;
     [SerializeField] private GameObject gameplayUI;
@@ -28,6 +30,11 @@ public class IntroManager : MonoBehaviour
     private Camera mainCamera;
     private CameraFollow cameraFollow;
 
+    public static void SkipNextIntro()
+    {
+        skipNextIntro = true;
+    }
+
     private void Start()
     {
         mainCamera = Camera.main;
@@ -47,6 +54,13 @@ public class IntroManager : MonoBehaviour
                     introCameraStart.position,
                     introCameraStart.rotation);
             }
+        }
+
+        if (skipNextIntro)
+        {
+            skipNextIntro = false;
+            StartGameplayImmediately();
+            return;
         }
 
         if (introPanel != null)
@@ -71,6 +85,44 @@ public class IntroManager : MonoBehaviour
 
         nextBlinkTime =
             Time.unscaledTime + Mathf.Max(blinkInterval, 0.01f);
+    }
+
+    private void StartGameplayImmediately()
+    {
+        hasStartedTransition = true;
+
+        if (logoCanvasGroup != null)
+        {
+            logoCanvasGroup.alpha = 0f;
+        }
+
+        if (pressAnyKeyText != null)
+        {
+            pressAnyKeyText.gameObject.SetActive(false);
+        }
+
+        if (introPanel != null)
+        {
+            introPanel.SetActive(false);
+        }
+
+        if (gameplayUI != null)
+        {
+            gameplayUI.SetActive(true);
+        }
+
+        if (mainCamera != null &&
+            gameplayCameraTarget != null)
+        {
+            mainCamera.transform.SetPositionAndRotation(
+                gameplayCameraTarget.position,
+                gameplayCameraTarget.rotation);
+        }
+
+        if (cameraFollow != null)
+        {
+            cameraFollow.enabled = true;
+        }
     }
 
     private void Update()

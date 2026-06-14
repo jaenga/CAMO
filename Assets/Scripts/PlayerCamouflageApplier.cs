@@ -23,6 +23,9 @@ public class PlayerCamouflageApplier : MonoBehaviour
 
     private Sprite camouflageSprite;
     private Texture2D camouflageTexture;
+    private bool originalRendererWasEnabled;
+    private bool originalRendererWasForcedOff;
+    private bool isOriginalRendererHidden;
 
     private void Awake()
     {
@@ -44,6 +47,16 @@ public class PlayerCamouflageApplier : MonoBehaviour
         Debug.Log(
             "[PlayerCamouflageApplier] Player original sprite preserved.",
             this);
+    }
+
+    private void LateUpdate()
+    {
+        if (isOriginalRendererHidden &&
+            playerRenderer != null)
+        {
+            playerRenderer.enabled = false;
+            playerRenderer.forceRenderingOff = true;
+        }
     }
 
     public void ApplyCamouflage(Texture2D texture)
@@ -126,12 +139,13 @@ public class PlayerCamouflageApplier : MonoBehaviour
         overlayRenderer.color = Color.white;
         MatchOverlayToPlayer();
         overlayRenderer.gameObject.SetActive(true);
+        HideOriginalRenderer();
 
         Debug.Log(
             "[PlayerCamouflageApplier] Camouflage texture applied to overlay.",
             this);
         Debug.Log(
-            "[PlayerCamouflageApplier] Player original sprite preserved.",
+            "[PlayerCamouflageApplier] Player original sprite hidden while camouflage is active.",
             this);
     }
 
@@ -253,6 +267,8 @@ public class PlayerCamouflageApplier : MonoBehaviour
 
     public void ResetCamouflage()
     {
+        RestoreOriginalRenderer();
+
         if (overlayRenderer != null)
         {
             overlayRenderer.color = Color.white;
@@ -265,6 +281,36 @@ public class PlayerCamouflageApplier : MonoBehaviour
         Debug.Log(
             "[PlayerCamouflageApplier] Player camouflage reset.",
             this);
+    }
+
+    private void HideOriginalRenderer()
+    {
+        if (playerRenderer == null ||
+            isOriginalRendererHidden)
+        {
+            return;
+        }
+
+        originalRendererWasEnabled = playerRenderer.enabled;
+        originalRendererWasForcedOff =
+            playerRenderer.forceRenderingOff;
+        playerRenderer.enabled = false;
+        playerRenderer.forceRenderingOff = true;
+        isOriginalRendererHidden = true;
+    }
+
+    private void RestoreOriginalRenderer()
+    {
+        if (playerRenderer == null ||
+            !isOriginalRendererHidden)
+        {
+            return;
+        }
+
+        playerRenderer.forceRenderingOff =
+            originalRendererWasForcedOff;
+        playerRenderer.enabled = originalRendererWasEnabled;
+        isOriginalRendererHidden = false;
     }
 
     public IEnumerator FadeOutCamouflage(float duration)
@@ -364,6 +410,7 @@ public class PlayerCamouflageApplier : MonoBehaviour
 
     private void OnDestroy()
     {
+        RestoreOriginalRenderer();
         ReleaseGeneratedCamouflage();
     }
 

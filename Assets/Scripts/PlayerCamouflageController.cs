@@ -34,7 +34,7 @@ public class PlayerCamouflageController : MonoBehaviour
 
     [Header("Camouflage Freeze")]
     [Min(0f)]
-    [SerializeField] private float camouflageFreezeDuration = 5f;
+    [SerializeField] private float camouflageFreezeDuration = 10f;
 
     [Min(0f)]
     [SerializeField] private float camouflageFadeDuration = 1.5f;

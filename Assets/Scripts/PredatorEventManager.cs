@@ -2,6 +2,7 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 
 public class PredatorEventManager : MonoBehaviour
 {
@@ -13,11 +14,10 @@ public class PredatorEventManager : MonoBehaviour
     [Min(0.1f)]
     [SerializeField] private float drawingLimitTime = 30f;
     [Min(0f)]
-    [SerializeField] private float postDrawingFreezeTime = 5f;
+    [FormerlySerializedAs("postDrawingFreezeTime")]
+    [SerializeField] private float resultAnimationDuration = 5f;
     [Min(0f)]
     [SerializeField] private float predatorSearchTime = 5f;
-    [Min(0f)]
-    [SerializeField] private float camouflageFadeDuration = 1.5f;
 
     [Header("Drawing")]
     [SerializeField] private GameObject drawingPanel;
@@ -40,6 +40,8 @@ public class PredatorEventManager : MonoBehaviour
     [SerializeField] private float predatorMoveSpeed = 2f;
     [Min(0f)]
     [SerializeField] private float predatorMoveRange = 2f;
+    [Min(0f)]
+    [SerializeField] private float predatorMinimumDistance = 2.5f;
 
     [Header("UI")]
     [SerializeField] private TMP_Text warningText;
@@ -281,47 +283,36 @@ public class PredatorEventManager : MonoBehaviour
                 this);
         }
 
-        float presentationDuration = Mathf.Max(
-            postDrawingFreezeTime,
-            predatorSearchTime);
-        float remainingFreezeTime =
-            predator != null
-                ? Mathf.Max(
-                    0f,
-                    presentationDuration - predatorSearchTime)
-                : presentationDuration;
-
-        if (remainingFreezeTime > 0f)
-        {
-            yield return new WaitForSeconds(remainingFreezeTime);
-        }
-
         bool isSuccess = EvaluateCamouflage();
 
         if (predator != null)
         {
+            KeepPredatorAwayFromPlayer();
+
             if (isSuccess)
             {
                 predator.PlayStop();
                 Debug.Log(
-                    "[PredatorEventManager] Camouflage succeeded. Predator event completed.",
+                    "[PredatorEventManager] Camouflage succeeded. Holding the predator stop animation.",
                     this);
             }
             else
             {
                 predator.PlayFly();
-                HandleGameOver();
+                Debug.Log(
+                    "[PredatorEventManager] Camouflage failed. Holding the predator detection animation before Game Over.",
+                    this);
             }
         }
-        else if (!isSuccess)
+
+        if (resultAnimationDuration > 0f)
         {
-            HandleGameOver();
+            yield return new WaitForSeconds(resultAnimationDuration);
         }
 
         if (camouflageApplier != null)
         {
-            yield return camouflageApplier.FadeOutCamouflage(
-                camouflageFadeDuration);
+            camouflageApplier.ResetCamouflage();
         }
 
         if (playerController != null)
@@ -336,6 +327,11 @@ public class PredatorEventManager : MonoBehaviour
 
         eventCoroutine = null;
         isEventActive = false;
+
+        if (!isSuccess)
+        {
+            HandleGameOver();
+        }
     }
 
     private void ForceDeveloperResult(bool isSuccess)
@@ -430,8 +426,12 @@ public class PredatorEventManager : MonoBehaviour
         }
 
         Vector3 playerPosition = playerTransform.position;
+        float nearDistance = Mathf.Max(
+            predatorMoveRange,
+            predatorMinimumDistance);
+
         return new Vector3(
-            playerPosition.x + spawnSide * predatorMoveRange,
+            playerPosition.x + spawnSide * nearDistance,
             playerPosition.y + spawnYOffset,
             predator != null
                 ? predator.transform.position.z
@@ -448,20 +448,31 @@ public class PredatorEventManager : MonoBehaviour
             searchTarget.x < playerTransform.position.x
                 ? -1f
                 : 1f;
+        float nearDistance = Mathf.Max(
+            predatorMoveRange,
+            predatorMinimumDistance);
+        float farDistance = Mathf.Max(
+            spawnHorizontalOffset,
+            nearDistance);
+        bool movingToNearPoint = true;
 
         while (elapsed < predatorSearchTime)
         {
             if (Vector3.Distance(
                     predator.transform.position,
                     searchTarget) <= 0.05f &&
-                playerTransform != null &&
-                predatorMoveRange > 0f)
+                playerTransform != null)
             {
-                patrolSide *= -1f;
+                movingToNearPoint = !movingToNearPoint;
                 Vector3 playerPosition = playerTransform.position;
+                float targetDistance =
+                    movingToNearPoint
+                        ? nearDistance
+                        : farDistance;
+
                 searchTarget = new Vector3(
                     playerPosition.x +
-                    patrolSide * predatorMoveRange,
+                    patrolSide * targetDistance,
                     playerPosition.y + spawnYOffset,
                     predator.transform.position.z);
             }
@@ -470,6 +481,10 @@ public class PredatorEventManager : MonoBehaviour
                 predator.transform.position,
                 searchTarget,
                 predatorMoveSpeed * Time.deltaTime);
+            nextPosition = ClampPredatorDistance(
+                nextPosition,
+                playerTransform,
+                patrolSide);
             float moveDirectionX = nextPosition.x - previousX;
 
             predator.transform.position = nextPosition;
@@ -479,6 +494,54 @@ public class PredatorEventManager : MonoBehaviour
             elapsed += Time.deltaTime;
             yield return null;
         }
+    }
+
+    private void KeepPredatorAwayFromPlayer()
+    {
+        Transform playerTransform = GetPlayerTransform();
+
+        if (predator == null ||
+            playerTransform == null)
+        {
+            return;
+        }
+
+        float side = predator.transform.position.x <
+                     playerTransform.position.x
+            ? -1f
+            : 1f;
+
+        predator.transform.position = ClampPredatorDistance(
+            predator.transform.position,
+            playerTransform,
+            side);
+        predator.SetFacingDirection(
+            playerTransform.position.x -
+            predator.transform.position.x);
+    }
+
+    private Vector3 ClampPredatorDistance(
+        Vector3 predatorPosition,
+        Transform playerTransform,
+        float side)
+    {
+        if (playerTransform == null)
+        {
+            return predatorPosition;
+        }
+
+        float safeSide = side < 0f ? -1f : 1f;
+        float minimumDistance =
+            Mathf.Max(predatorMinimumDistance, 0f);
+        float boundaryX =
+            playerTransform.position.x +
+            safeSide * minimumDistance;
+
+        predatorPosition.x = safeSide < 0f
+            ? Mathf.Min(predatorPosition.x, boundaryX)
+            : Mathf.Max(predatorPosition.x, boundaryX);
+
+        return predatorPosition;
     }
 
     private Transform GetPlayerTransform()

@@ -1,5 +1,4 @@
 using System.Collections;
-using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -11,8 +10,6 @@ public class GameOverUIController : MonoBehaviour
     [SerializeField] private Image spotlight;
     [SerializeField] private GameObject bubbleChameleon;
     [SerializeField] private GameObject bubblePigeon;
-    [SerializeField] private TMP_Text bubbleChameleonText;
-    [SerializeField] private TMP_Text bubblePigeonText;
 
     [Header("Head Buttons")]
     [SerializeField] private Button chameleonHeadButton;
@@ -26,13 +23,15 @@ public class GameOverUIController : MonoBehaviour
     [SerializeField] private float spotlightDuration = 3f;
     [Min(0.01f)]
     [SerializeField] private float spotlightFlickerInterval = 0.12f;
+    [Range(0f, 1f)]
+    [SerializeField] private float spotlightFlickerMinAlpha;
+    [Range(0f, 1f)]
+    [SerializeField] private float spotlightFlickerMaxAlpha = 1f;
 
     private Coroutine spotlightCoroutine;
 
     private void Awake()
     {
-        ResolveBubbleText();
-        SetBubbleText();
         DisableBubbleRaycasts(bubbleChameleon);
         DisableBubbleRaycasts(bubblePigeon);
         SetBubblesActive(false);
@@ -91,6 +90,7 @@ public class GameOverUIController : MonoBehaviour
     public void RestartCurrentScene()
     {
         Time.timeScale = 1f;
+        IntroManager.SkipNextIntro();
         Scene currentScene = SceneManager.GetActiveScene();
         SceneManager.LoadScene(currentScene.buildIndex);
     }
@@ -116,7 +116,14 @@ public class GameOverUIController : MonoBehaviour
             yield break;
         }
 
-        SetSpotlightAlpha(0f);
+        float minAlpha = Mathf.Min(
+            spotlightFlickerMinAlpha,
+            spotlightFlickerMaxAlpha);
+        float maxAlpha = Mathf.Max(
+            spotlightFlickerMinAlpha,
+            spotlightFlickerMaxAlpha);
+
+        SetSpotlightAlpha(minAlpha);
 
         float duration = Mathf.Max(spotlightDuration, 0.1f);
         float interval = Mathf.Max(spotlightFlickerInterval, 0.01f);
@@ -131,14 +138,14 @@ public class GameOverUIController : MonoBehaviour
             if (elapsed >= nextFlickerTime)
             {
                 isLit = !isLit;
-                SetSpotlightAlpha(isLit ? 1f : 0f);
+                SetSpotlightAlpha(isLit ? maxAlpha : minAlpha);
                 nextFlickerTime = elapsed + interval;
             }
 
             yield return null;
         }
 
-        SetSpotlightAlpha(1f);
+        SetSpotlightAlpha(maxAlpha);
         spotlightCoroutine = null;
     }
 
@@ -147,36 +154,6 @@ public class GameOverUIController : MonoBehaviour
         Color color = spotlight.color;
         color.a = alpha;
         spotlight.color = color;
-    }
-
-    private void ResolveBubbleText()
-    {
-        if (bubbleChameleonText == null &&
-            bubbleChameleon != null)
-        {
-            bubbleChameleonText =
-                bubbleChameleon.GetComponentInChildren<TMP_Text>(true);
-        }
-
-        if (bubblePigeonText == null &&
-            bubblePigeon != null)
-        {
-            bubblePigeonText =
-                bubblePigeon.GetComponentInChildren<TMP_Text>(true);
-        }
-    }
-
-    private void SetBubbleText()
-    {
-        if (bubbleChameleonText != null)
-        {
-            bubbleChameleonText.text = "다시 속여보자";
-        }
-
-        if (bubblePigeonText != null)
-        {
-            bubblePigeonText.text = "오늘은 여기까지";
-        }
     }
 
     private void SetBubblesActive(bool active)
