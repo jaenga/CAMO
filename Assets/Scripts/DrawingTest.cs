@@ -21,8 +21,13 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     [SerializeField] private PredatorController predatorController;
     [SerializeField] private RawImage chameleonPreviewImage;
     [SerializeField] private Image chameleonLineImage;
+    [Tooltip("몸통 내부는 흰색/불투명, 외부는 검정/투명인 판정 마스크입니다.")]
+    [SerializeField] private Texture2D maskTexture;
+    [SerializeField] private BackgroundSampler backgroundSampler;
     [Range(0.05f, 1.5f)]
     [SerializeField] private float colorTolerance = 0.5f;
+    [Range(0.01f, 1f)]
+    [SerializeField] private float requiredMatchRatio = 0.6f;
     private Color brushColor = new Color32(255, 105, 180, 255);
     private int brushSize = 2;
 
@@ -35,6 +40,12 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     private void Awake()
     {
         EnsureCanvasReferences(false);
+
+        if (backgroundSampler == null)
+        {
+            backgroundSampler =
+                FindFirstObjectByType<BackgroundSampler>();
+        }
     }
 
     private void Start()
@@ -148,6 +159,18 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     public void SetPreviewFacingDirection(bool isFacingRight)
     {
         SetCanvasMirrored(!isFacingRight);
+
+        if (backgroundSampler == null)
+        {
+            backgroundSampler =
+                FindFirstObjectByType<BackgroundSampler>();
+        }
+
+        if (backgroundSampler != null)
+        {
+            backgroundSampler.SetPreviewFacingDirection(
+                isFacingRight);
+        }
 
         Debug.Log(
             $"[DrawingTest] Canvas preview facing direction: {(isFacingRight ? "Right" : "Left")}.",
@@ -492,39 +515,179 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
             return false;
         }
 
-        Color drawingAverageColor = CalculateAverageColor(texture);
-        Debug.Log(
-            $"[DrawingTest] Drawing average color: {drawingAverageColor}",
-            this);
-
-        Texture2D downsampledDrawing = DownsampleTexture(texture);
-        Texture2D downsampledTarget = DownsampleTexture(targetPattern);
-        float totalScore = 0f;
-
-        for (int region = 0; region < 4; region++)
+        if (maskTexture == null)
         {
-            Color drawingAverage =
-                GetRegionAverageColor(downsampledDrawing, region);
-            Color targetAverage =
-                GetRegionAverageColor(downsampledTarget, region);
-            totalScore +=
-                CalculateColorSimilarity(drawingAverage, targetAverage);
+            Debug.LogWarning(
+                "[DrawingTest] Mask Texture is not assigned. Camouflage evaluation cannot exclude pixels outside the body.",
+                this);
+            return false;
         }
 
-        Destroy(downsampledDrawing);
-        Destroy(downsampledTarget);
+        try
+        {
+            similarityScore = CalculateMaskedSimilarity(
+                out float matchRatio,
+                out int comparedPixelCount);
+            result = GetSimilarityResult(similarityScore);
 
-        similarityScore = Mathf.Clamp(totalScore / 4f, 0f, 100f);
-        result = GetSimilarityResult(similarityScore);
-        bool isSuccess =
-            result == "Perfect" ||
-            result == "Success";
+            bool isSuccess =
+                result == "Perfect" ||
+                result == "Success";
 
-        Debug.Log(
-            $"[DrawingTest] Similarity Score: {similarityScore:F2} / 100 - {result}. Color tolerance: {colorTolerance:F2}. Success: {isSuccess}",
-            this);
+            Debug.Log(
+                $"[DrawingTest] Masked Similarity Score: {similarityScore:F2} / 100 - {result}. Match ratio: {matchRatio:P1}, Required: {requiredMatchRatio:P1}, Compared pixels: {comparedPixelCount}, Color tolerance: {colorTolerance:F2}, Success: {isSuccess}",
+                this);
+        }
+        catch (UnityException exception)
+        {
+            Debug.LogError(
+                "[DrawingTest] Mask, line, drawing, and answer textures used for evaluation must have Read/Write Enabled.\n" +
+                exception.Message,
+                this);
+            return false;
+        }
 
         return true;
+    }
+
+    private float CalculateMaskedSimilarity(
+        out float matchRatio,
+        out int comparedPixelCount)
+    {
+        int matchedPixelCount = 0;
+        float totalSimilarity = 0f;
+        comparedPixelCount = 0;
+
+        for (int y = 0; y < ComparisonSize; y++)
+        {
+            float v = (y + 0.5f) / ComparisonSize;
+
+            for (int x = 0; x < ComparisonSize; x++)
+            {
+                float u = (x + 0.5f) / ComparisonSize;
+
+                if (!IsBodyMaskPixel(SampleTexture(maskTexture, u, v)) ||
+                    IsLinePixel(u, v))
+                {
+                    continue;
+                }
+
+                float targetU = isCanvasMirrored ? 1f - u : u;
+                Color targetColor =
+                    SampleTexture(targetPattern, targetU, v);
+
+                if (targetColor.a <= 0.01f)
+                {
+                    continue;
+                }
+
+                comparedPixelCount++;
+
+                Color drawingColor =
+                    SampleTexture(texture, u, v);
+
+                if (drawingColor.a <= 0.01f)
+                {
+                    continue;
+                }
+
+                float pixelSimilarity =
+                    CalculateColorSimilarity(
+                        drawingColor,
+                        targetColor);
+                totalSimilarity += pixelSimilarity;
+
+                if (GetColorDistance(
+                        drawingColor,
+                        targetColor) <= colorTolerance)
+                {
+                    matchedPixelCount++;
+                }
+            }
+        }
+
+        if (comparedPixelCount == 0)
+        {
+            matchRatio = 0f;
+            return 0f;
+        }
+
+        matchRatio =
+            matchedPixelCount / (float)comparedPixelCount;
+        float averageSimilarity =
+            totalSimilarity / comparedPixelCount;
+        float requiredRatio =
+            Mathf.Clamp(requiredMatchRatio, 0.01f, 1f);
+        float coverageFactor =
+            Mathf.Clamp01(matchRatio / requiredRatio);
+
+        return Mathf.Clamp(
+            averageSimilarity * coverageFactor,
+            0f,
+            100f);
+    }
+
+    private Color SampleTexture(
+        Texture2D source,
+        float u,
+        float v)
+    {
+        int x = Mathf.Clamp(
+            Mathf.FloorToInt(u * source.width),
+            0,
+            source.width - 1);
+        int y = Mathf.Clamp(
+            Mathf.FloorToInt(v * source.height),
+            0,
+            source.height - 1);
+
+        return source.GetPixel(x, y);
+    }
+
+    private bool IsBodyMaskPixel(Color maskColor)
+    {
+        float brightness = Mathf.Max(
+            maskColor.r,
+            Mathf.Max(maskColor.g, maskColor.b));
+
+        return maskColor.a > 0.01f &&
+               brightness >= 0.5f;
+    }
+
+    private bool IsLinePixel(float u, float v)
+    {
+        if (chameleonLineImage == null ||
+            chameleonLineImage.sprite == null)
+        {
+            return false;
+        }
+
+        Sprite lineSprite = chameleonLineImage.sprite;
+        Texture2D lineTexture = lineSprite.texture;
+
+        if (lineTexture == null)
+        {
+            return false;
+        }
+
+        Rect spriteRect = lineSprite.textureRect;
+        int x = Mathf.Clamp(
+            Mathf.FloorToInt(
+                spriteRect.x + u * spriteRect.width),
+            Mathf.FloorToInt(spriteRect.x),
+            Mathf.CeilToInt(spriteRect.xMax) - 1);
+        int y = Mathf.Clamp(
+            Mathf.FloorToInt(
+                spriteRect.y + v * spriteRect.height),
+            Mathf.FloorToInt(spriteRect.y),
+            Mathf.CeilToInt(spriteRect.yMax) - 1);
+        Color lineColor = lineTexture.GetPixel(x, y);
+        float brightness = Mathf.Max(
+            lineColor.r,
+            Mathf.Max(lineColor.g, lineColor.b));
+
+        return lineColor.a > 0.01f &&
+               brightness <= 0.25f;
     }
 
     public void ClearCanvas()
@@ -659,13 +822,8 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
 
     private float CalculateColorSimilarity(Color first, Color second)
     {
-        float redDifference = first.r - second.r;
-        float greenDifference = first.g - second.g;
-        float blueDifference = first.b - second.b;
-        float colorDistance = Mathf.Sqrt(
-            redDifference * redDifference +
-            greenDifference * greenDifference +
-            blueDifference * blueDifference);
+        float colorDistance =
+            GetColorDistance(first, second);
         float safeTolerance = Mathf.Clamp(
             colorTolerance,
             0.01f,
@@ -683,6 +841,18 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
             colorDistance);
 
         return Mathf.Lerp(70f, 0f, excessDifference);
+    }
+
+    private float GetColorDistance(Color first, Color second)
+    {
+        float redDifference = first.r - second.r;
+        float greenDifference = first.g - second.g;
+        float blueDifference = first.b - second.b;
+
+        return Mathf.Sqrt(
+            redDifference * redDifference +
+            greenDifference * greenDifference +
+            blueDifference * blueDifference);
     }
 
     private string GetSimilarityResult(float similarityScore)
