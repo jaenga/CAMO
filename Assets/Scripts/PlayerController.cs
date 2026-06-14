@@ -24,6 +24,7 @@ public class PlayerController : MonoBehaviour
     private bool isGrounded;
     private bool isExternallyGrounded;
     private bool isMovementLocked;
+    private bool isControlLocked;
     private bool isFacingRight = true;
     private Vector3 originalScale;
 
@@ -42,7 +43,8 @@ public class PlayerController : MonoBehaviour
     {
         isGrounded = CheckGrounded() || isExternallyGrounded;
 
-        if (isMovementLocked)
+        if (isMovementLocked ||
+            isControlLocked)
         {
             horizontalInput = 0f;
             return;
@@ -83,6 +85,11 @@ public class PlayerController : MonoBehaviour
         if (isMovementLocked)
         {
             rigidbody2D.linearVelocity = Vector2.zero;
+            return;
+        }
+
+        if (isControlLocked)
+        {
             return;
         }
 
@@ -168,6 +175,46 @@ public class PlayerController : MonoBehaviour
 
             animator.enabled = !locked;
         }
+    }
+
+    public void SetControlLocked(bool locked)
+    {
+        isControlLocked = locked;
+        horizontalInput = 0f;
+
+        if (rigidbody2D != null)
+        {
+            rigidbody2D.linearVelocity = Vector2.zero;
+        }
+
+        if (animator != null)
+        {
+            animator.SetBool("isMoving", false);
+        }
+    }
+
+    public void SetAutoWalkState(bool isWalking, float directionX)
+    {
+        if (!Mathf.Approximately(directionX, 0f))
+        {
+            SetFacingDirection(directionX);
+        }
+
+        if (animator != null)
+        {
+            animator.enabled = true;
+            animator.SetBool("isMoving", isWalking);
+        }
+    }
+
+    private void SetFacingDirection(float directionX)
+    {
+        float direction = directionX >= 0f ? 1f : -1f;
+        isFacingRight = directionX >= 0f;
+        transform.localScale = new Vector3(
+            Mathf.Abs(originalScale.x) * direction,
+            originalScale.y,
+            originalScale.z);
     }
 
     private bool CheckGrounded()

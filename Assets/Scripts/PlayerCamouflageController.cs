@@ -111,6 +111,13 @@ public class PlayerCamouflageController : MonoBehaviour
 
     private void HandleCamouflageInput()
     {
+        if (GameOverUIController.IsGameOverActive ||
+            GoalZone.IsEndingActive)
+        {
+            SetDrawingPanelActive(false);
+            return;
+        }
+
         if (predatorEventManager != null &&
             predatorEventManager.IsEventActive)
         {

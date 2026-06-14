@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -30,8 +31,11 @@ public class GameOverUIController : MonoBehaviour
 
     private Coroutine spotlightCoroutine;
 
+    public static bool IsGameOverActive { get; private set; }
+
     private void Awake()
     {
+        IsGameOverActive = false;
         DisableBubbleRaycasts(bubbleChameleon);
         DisableBubbleRaycasts(bubblePigeon);
         SetBubblesActive(false);
@@ -54,6 +58,8 @@ public class GameOverUIController : MonoBehaviour
 
     private void OnDestroy()
     {
+        IsGameOverActive = false;
+
         if (chameleonHeadButton != null)
         {
             chameleonHeadButton.onClick.RemoveListener(RestartCurrentScene);
@@ -62,6 +68,20 @@ public class GameOverUIController : MonoBehaviour
         if (pigeonHeadButton != null)
         {
             pigeonHeadButton.onClick.RemoveListener(LoadHomeScene);
+        }
+    }
+
+    private void Update()
+    {
+        if (!IsGameOverActive ||
+            Keyboard.current == null)
+        {
+            return;
+        }
+
+        if (Keyboard.current.spaceKey.wasPressedThisFrame)
+        {
+            RestartCurrentSceneFromIntro();
         }
     }
 
@@ -76,6 +96,7 @@ public class GameOverUIController : MonoBehaviour
         }
 
         gameOverPanel.SetActive(true);
+        IsGameOverActive = true;
         SetBubblesActive(false);
         Time.timeScale = 0f;
 
@@ -91,6 +112,13 @@ public class GameOverUIController : MonoBehaviour
     {
         Time.timeScale = 1f;
         IntroManager.SkipNextIntro();
+        Scene currentScene = SceneManager.GetActiveScene();
+        SceneManager.LoadScene(currentScene.buildIndex);
+    }
+
+    private void RestartCurrentSceneFromIntro()
+    {
+        Time.timeScale = 1f;
         Scene currentScene = SceneManager.GetActiveScene();
         SceneManager.LoadScene(currentScene.buildIndex);
     }
