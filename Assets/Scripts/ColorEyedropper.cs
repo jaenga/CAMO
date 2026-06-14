@@ -44,29 +44,23 @@ public class ColorEyedropper : MonoBehaviour
 
         EnsureInputBlocker();
 
-        if (eyedropperButton != null)
-        {
-            eyedropperButton.onClick.AddListener(
-                BeginEyedropperMode);
-        }
-        else
+        if (eyedropperButton == null)
         {
             Debug.LogWarning(
                 "[ColorEyedropper] Eyedropper Button is not assigned. " +
-                "Connect the manually created button in the Inspector.",
+                "Connect the manually created button and its OnClick in the Inspector.",
                 this);
         }
+    }
+
+    private void OnDisable()
+    {
+        EndEyedropperMode();
     }
 
     private void OnDestroy()
     {
         EndEyedropperMode();
-
-        if (eyedropperButton != null)
-        {
-            eyedropperButton.onClick.RemoveListener(
-                BeginEyedropperMode);
-        }
     }
 
     private void LateUpdate()
@@ -97,6 +91,13 @@ public class ColorEyedropper : MonoBehaviour
 
     public void BeginEyedropperMode()
     {
+        if (!isActiveAndEnabled ||
+            !gameObject.activeInHierarchy)
+        {
+            EndEyedropperMode();
+            return;
+        }
+
         if (isSampling)
         {
             return;
@@ -132,8 +133,11 @@ public class ColorEyedropper : MonoBehaviour
 
     public void SampleAtScreenPosition(Vector2 screenPosition)
     {
-        if (!isSampling)
+        if (!isSampling ||
+            !isActiveAndEnabled ||
+            !gameObject.activeInHierarchy)
         {
+            EndEyedropperMode();
             return;
         }
 
@@ -250,6 +254,14 @@ public class ColorEyedropperClickCatcher :
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        controller?.SampleAtScreenPosition(eventData.position);
+        if (controller == null ||
+            !controller.isActiveAndEnabled ||
+            !controller.gameObject.activeInHierarchy)
+        {
+            gameObject.SetActive(false);
+            return;
+        }
+
+        controller.SampleAtScreenPosition(eventData.position);
     }
 }

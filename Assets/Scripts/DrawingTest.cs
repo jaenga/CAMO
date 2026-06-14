@@ -125,6 +125,8 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
 
     private void OnDestroy()
     {
+        SoundManager.Instance?.StopBrush();
+
         if (brushSizeSlider != null)
         {
             brushSizeSlider.onValueChanged.RemoveListener(SetBrushSize);
@@ -136,18 +138,32 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
         }
     }
 
+    private void OnDisable()
+    {
+        SoundManager.Instance?.StopBrush();
+        hasPreviousPixel = false;
+    }
+
     public void OnPointerDown(PointerEventData eventData)
     {
         if (ColorEyedropper.IsAnySampling)
         {
+            SoundManager.Instance?.StopBrush();
             return;
         }
 
         SaveUndoState();
         hasPreviousPixel = false;
 
-        if (Draw(eventData) &&
-            recentColorManager != null)
+        if (!Draw(eventData))
+        {
+            SoundManager.Instance?.StopBrush();
+            return;
+        }
+
+        SoundManager.Instance?.PlayBrush();
+
+        if (recentColorManager != null)
         {
             recentColorManager.RecordColor(brushColor);
         }
@@ -157,14 +173,24 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     {
         if (ColorEyedropper.IsAnySampling)
         {
+            SoundManager.Instance?.StopBrush();
             return;
         }
 
-        Draw(eventData);
+        if (Draw(eventData))
+        {
+            SoundManager.Instance?.PlayBrush();
+        }
+        else
+        {
+            SoundManager.Instance?.StopBrush();
+        }
     }
 
     public void OnPointerUp(PointerEventData eventData)
     {
+        SoundManager.Instance?.StopBrush();
+
         if (ColorEyedropper.IsAnySampling)
         {
             return;
@@ -411,6 +437,11 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     {
         int previousBrushSize = brushSize;
         brushSize = Mathf.Clamp(Mathf.RoundToInt(value), 1, 10);
+
+        if (brushSize != previousBrushSize)
+        {
+            SoundManager.Instance?.PlayButton();
+        }
 
         GameplayDebug.Log(enableDebugLogs,
             $"[DrawingTest] Slider Value: {value:F2}, Brush Size: {previousBrushSize} -> {brushSize}",

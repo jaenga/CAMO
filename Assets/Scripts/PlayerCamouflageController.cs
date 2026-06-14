@@ -125,6 +125,7 @@ public class PlayerCamouflageController : MonoBehaviour
                 Keyboard.current != null &&
                 Keyboard.current.rKey.wasPressedThisFrame)
             {
+                SoundManager.Instance?.PlayButton();
                 predatorEventManager.ToggleDrawingPanel();
             }
 
@@ -154,6 +155,7 @@ public class PlayerCamouflageController : MonoBehaviour
         }
 
         GameplayDebug.Log(enableDebugLogs, "[PlayerCamouflageController] R key pressed.", this);
+        SoundManager.Instance?.PlayButton();
 
         if (!isCamouflageMode)
         {
@@ -348,6 +350,7 @@ public class PlayerCamouflageController : MonoBehaviour
     public void ManualSubmit()
     {
         GameplayDebug.Log(enableDebugLogs, "[PlayerCamouflageController] Manual Submit requested.", this);
+        SoundManager.Instance?.PlaySubmit();
 
         if (predatorEventManager != null &&
             predatorEventManager.IsEventActive)

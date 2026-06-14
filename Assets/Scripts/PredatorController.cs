@@ -341,6 +341,7 @@ public class PredatorController : MonoBehaviour
 
     private void AttackPlayer()
     {
+        SoundManager.Instance?.PlayFail();
         requireCamouflageToSurvive = false;
         ChangeState(PredatorState.Attack);
         GameplayDebug.Log(enableDebugLogs, "[Game Over] Predator caught the player.", this);

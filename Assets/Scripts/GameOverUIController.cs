@@ -98,6 +98,7 @@ public class GameOverUIController : MonoBehaviour
         gameOverPanel.SetActive(true);
         IsGameOverActive = true;
         SetBubblesActive(false);
+        SoundManager.Instance?.PlayGameOver();
         Time.timeScale = 0f;
 
         if (spotlightCoroutine != null)

@@ -26,6 +26,7 @@ public class PlayerCamouflageApplier : MonoBehaviour
 
     private Sprite camouflageSprite;
     private Texture2D camouflageTexture;
+    private Sprite referencePlayerSprite;
     private bool originalRendererWasEnabled;
     private bool originalRendererWasForcedOff;
     private bool isOriginalRendererHidden;
@@ -45,6 +46,7 @@ public class PlayerCamouflageApplier : MonoBehaviour
             return;
         }
 
+        referencePlayerSprite = playerRenderer.sprite;
         EnsureOverlayRenderer();
 
         GameplayDebug.Log(enableDebugLogs,
@@ -80,7 +82,12 @@ public class PlayerCamouflageApplier : MonoBehaviour
             return;
         }
 
-        if (playerRenderer.sprite == null)
+        Sprite playerSprite =
+            referencePlayerSprite != null
+                ? referencePlayerSprite
+                : playerRenderer.sprite;
+
+        if (playerSprite == null)
         {
             Debug.LogWarning(
                 "[PlayerCamouflageApplier] Player Sprite is not assigned.",
@@ -108,7 +115,9 @@ public class PlayerCamouflageApplier : MonoBehaviour
 
         ReleaseGeneratedCamouflage();
 
-        Sprite playerSprite = playerRenderer.sprite;
+        // 마스크와 라인 텍스처는 기본 정지 프레임 기준입니다.
+        // 걷기 중간 프레임이 남아 있어도 같은 기준 이미지로 합성합니다.
+        playerRenderer.sprite = playerSprite;
         Texture2D playerTexture = playerSprite.texture;
 
         // Player, Body Mask, Line Texture는 Read/Write Enabled가 필요합니다.
@@ -333,14 +342,15 @@ public class PlayerCamouflageApplier : MonoBehaviour
             yield break;
         }
 
-        // 페이드 중에는 원본 Player를 유지하고 위장 오버레이만 투명해집니다.
-        RestoreOriginalRenderer();
-
         Color originalColor = overlayRenderer.color;
         float elapsed = 0f;
 
         while (elapsed < safeDuration)
         {
+            // 원본과 위장 스프라이트가 다른 애니메이션 프레임으로
+            // 동시에 렌더링되지 않도록 페이드가 끝날 때까지 원본을 숨깁니다.
+            HideOriginalRenderer();
+
             float progress = Mathf.Clamp01(elapsed / safeDuration);
             Color fadedColor = originalColor;
             fadedColor.a = originalColor.a *

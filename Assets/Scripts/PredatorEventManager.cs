@@ -198,6 +198,7 @@ public class PredatorEventManager : MonoBehaviour
         float countdownRemaining = countdownDuration;
 
         SetTextVisible(warningText, true);
+        SoundManager.Instance?.PlayWarning();
 
         while (countdownRemaining > 0f)
         {
@@ -212,6 +213,7 @@ public class PredatorEventManager : MonoBehaviour
         }
 
         SetTextVisible(warningText, false);
+        SoundManager.Instance?.StopWarning();
         SetDrawingPanelActive(false);
 
         yield return new WaitForEndOfFrame();
@@ -280,8 +282,10 @@ public class PredatorEventManager : MonoBehaviour
             predator.ShowAtPosition(spawnPosition);
             predator.SetFacingDirection(moveDirectionX);
             predator.PlayWalk();
+            SoundManager.Instance?.PlayDove();
 
             yield return RunPredatorSearch(searchTarget);
+            SoundManager.Instance?.StopDove();
         }
         else
         {
@@ -305,6 +309,7 @@ public class PredatorEventManager : MonoBehaviour
             }
             else
             {
+                SoundManager.Instance?.PlayFail();
                 predator.PlayFly();
                 GameplayDebug.Log(enableDebugLogs,
                     "[PredatorEventManager] Camouflage failed. Holding the predator detection animation before Game Over.",
@@ -323,15 +328,20 @@ public class PredatorEventManager : MonoBehaviour
                 camouflageFadeDuration);
         }
 
-        // 위장 오버레이가 완전히 사라진 뒤에만 이동을 다시 허용합니다.
+        if (predator != null)
+        {
+            if (isSuccess)
+            {
+                yield return RunPredatorExit();
+            }
+
+            predator.Hide();
+        }
+
+        // 성공 시 포식자가 화면 밖으로 퇴장한 뒤 이동을 다시 허용합니다.
         if (playerController != null)
         {
             playerController.SetMovementLocked(false);
-        }
-
-        if (predator != null)
-        {
-            predator.Hide();
         }
 
         eventCoroutine = null;
@@ -359,6 +369,11 @@ public class PredatorEventManager : MonoBehaviour
         isDrawingActive = false;
         SetDrawingPanelActive(false);
         SetTextVisible(drawingTimerText, false);
+
+        if (!isSuccess)
+        {
+            SoundManager.Instance?.PlayFail();
+        }
 
         if (resultAnimationDuration > 0f)
         {
@@ -509,6 +524,69 @@ public class PredatorEventManager : MonoBehaviour
             elapsed += Time.deltaTime;
             yield return null;
         }
+    }
+
+    private IEnumerator RunPredatorExit()
+    {
+        Transform playerTransform = GetPlayerTransform();
+        float exitSide =
+            playerTransform != null &&
+            predator.transform.position.x <
+            playerTransform.position.x
+                ? -1f
+                : 1f;
+        Vector3 exitPosition = predator.transform.position;
+
+        if (playerTransform != null)
+        {
+            exitPosition.x =
+                playerTransform.position.x +
+                exitSide * Mathf.Max(
+                    spawnHorizontalOffset,
+                    predatorMinimumDistance);
+        }
+        else
+        {
+            exitPosition.x +=
+                exitSide * Mathf.Max(spawnHorizontalOffset, 1f);
+        }
+
+        Camera mainCamera = Camera.main;
+
+        if (mainCamera != null)
+        {
+            float viewportX = exitSide < 0f ? -0.1f : 1.1f;
+            float cameraDepth = Mathf.Abs(
+                predator.transform.position.z -
+                mainCamera.transform.position.z);
+            float outsideScreenX = mainCamera.ViewportToWorldPoint(
+                new Vector3(viewportX, 0.5f, cameraDepth)).x;
+
+            exitPosition.x = exitSide < 0f
+                ? Mathf.Min(exitPosition.x, outsideScreenX)
+                : Mathf.Max(exitPosition.x, outsideScreenX);
+        }
+
+        predator.PlayWalk();
+        predator.SetFacingDirection(exitSide);
+
+        while (Vector3.Distance(
+                   predator.transform.position,
+                   exitPosition) > 0.05f)
+        {
+            Vector3 previousPosition =
+                predator.transform.position;
+            predator.transform.position = Vector3.MoveTowards(
+                previousPosition,
+                exitPosition,
+                predatorMoveSpeed * Time.deltaTime);
+            predator.SetFacingDirection(
+                predator.transform.position.x -
+                previousPosition.x);
+            yield return null;
+        }
+
+        predator.transform.position = exitPosition;
     }
 
     private void KeepPredatorAwayFromPlayer()
@@ -682,6 +760,9 @@ public class PredatorEventManager : MonoBehaviour
 
     private void ResetEventPresentation()
     {
+        SoundManager.Instance?.StopBrush();
+        SoundManager.Instance?.StopDove();
+        SoundManager.Instance?.StopWarning();
         isEventActive = false;
         isDrawingActive = false;
         submitRequested = false;

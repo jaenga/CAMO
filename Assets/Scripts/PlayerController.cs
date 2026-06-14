@@ -68,6 +68,7 @@ public class PlayerController : MonoBehaviour
                 rigidbody2D.linearVelocity = new Vector2(
                     rigidbody2D.linearVelocity.x,
                     jumpForce);
+                SoundManager.Instance?.PlayJump();
 
                 Debug.Log("[PlayerController] Jump button pressed: Jump", this);
             }

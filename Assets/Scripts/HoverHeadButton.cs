@@ -63,6 +63,7 @@ public class HoverHeadButton :
     public void OnPointerEnter(PointerEventData eventData)
     {
         isHovered = true;
+        SoundManager.Instance?.PlayButton();
 
         if (hoverBubble != null)
         {
