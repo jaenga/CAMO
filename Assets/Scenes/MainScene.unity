@@ -4037,6 +4037,7 @@ MonoBehaviour:
   fadeTargetAlpha: 0.9
   fadeDuration: 1
   cctvDuration: 5
+  missionTitleFadeDuration: 0.8
   finalTextDelay: 0.5
   autoWalkSpeed: 2
   stopDistance: 0.05
@@ -15427,7 +15428,7 @@ MonoBehaviour:
   minHideCountdownTime: 5
   maxHideCountdownTime: 10
   drawingLimitTime: 60
-  resultAnimationDuration: 5
+  resultAnimationDuration: 2.5
   camouflageFadeDuration: 1.5
   predatorSearchTime: 5
   drawingPanel: {fileID: 1061346358}
@@ -15445,6 +15446,10 @@ MonoBehaviour:
   predatorMinimumDistance: 2.5
   successHoldDistance: 3.5
   warningText: {fileID: 751815813}
+  warningImage: {fileID: 2102744554}
+  warningPulseDuration: 1.2
+  enableScreenDangerOverlay: 1
+  screenDangerOverlayColor: {r: 1, g: 0, b: 0, a: 0.22}
   drawingTimerText: {fileID: 345660752}
   gameOverUIController: {fileID: 910000020}
   enableDeveloperResultShortcuts: 1
@@ -17090,7 +17095,7 @@ MonoBehaviour:
   maskTexture: {fileID: 2800000, guid: 7dd36ddb4a33b4e599ae3b8c64fa5e1b, type: 3}
   backgroundSampler: {fileID: 0}
   colorTolerance: 0.5
-  successSimilarityThreshold: 0.55
+  successSimilarityThreshold: 0.4
   enableDebugLogs: 0
 --- !u!114 &1874773329
 MonoBehaviour:
@@ -18403,7 +18408,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: e251b420279d24fcaba6a09835ea1c47, type: 3}
+  m_Sprite: {fileID: 21300000, guid: fe30fcf44f5f94c55a32c987de1a9352, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -19512,10 +19517,6 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 0}
     - target: {fileID: 5001536554548006548, guid: 819c441cd6f404c8d99b9245418902ba, type: 3}
-      propertyPath: timedWarningImage
-      value: 
-      objectReference: {fileID: 2102744554}
-    - target: {fileID: 5001536554548006548, guid: 819c441cd6f404c8d99b9245418902ba, type: 3}
       propertyPath: drawingPanel
       value: 
       objectReference: {fileID: 1061346358}
@@ -19527,6 +19528,10 @@ PrefabInstance:
       propertyPath: backgroundSampler
       value: 
       objectReference: {fileID: 2039156415}
+    - target: {fileID: 5001536554548006548, guid: 819c441cd6f404c8d99b9245418902ba, type: 3}
+      propertyPath: timedWarningImage
+      value:
+      objectReference: {fileID: 2102744554}
     - target: {fileID: 5001536554548006548, guid: 819c441cd6f404c8d99b9245418902ba, type: 3}
       propertyPath: camouflageTimeLimit
       value: 10
@@ -19542,7 +19547,7 @@ PrefabInstance:
     - target: {fileID: 7575890713810920316, guid: 819c441cd6f404c8d99b9245418902ba, type: 3}
       propertyPath: lineTexture
       value: 
-      objectReference: {fileID: 2800000, guid: e251b420279d24fcaba6a09835ea1c47, type: 3}
+      objectReference: {fileID: 2800000, guid: fe30fcf44f5f94c55a32c987de1a9352, type: 3}
     - target: {fileID: 7575890713810920316, guid: 819c441cd6f404c8d99b9245418902ba, type: 3}
       propertyPath: bodyMaskTexture
       value: 
@@ -19553,7 +19558,7 @@ PrefabInstance:
       objectReference: {fileID: 6200000, guid: 29b81a4cbfab94989bfe280ac547d6b4, type: 2}
     - target: {fileID: 8515175495640721718, guid: 819c441cd6f404c8d99b9245418902ba, type: 3}
       propertyPath: jumpForce
-      value: 4
+      value: 7
       objectReference: {fileID: 0}
     - target: {fileID: 8515175495640721718, guid: 819c441cd6f404c8d99b9245418902ba, type: 3}
       propertyPath: moveSpeed

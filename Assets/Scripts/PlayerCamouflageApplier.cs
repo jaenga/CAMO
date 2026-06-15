@@ -205,22 +205,15 @@ public class PlayerCamouflageApplier : MonoBehaviour
                     continue;
                 }
 
-                bool isProtectedEye = IsProtectedEyePixel(
+                Color maskColor = SampleTextureBySourcePixel(
+                    bodyMaskTexture,
                     textureX,
                     textureY,
                     playerTexture.width,
                     playerTexture.height);
-                bool isBodyPixel = !isProtectedEye &&
-                    (IsColoredBodyPixel(originalColor) ||
-                     IsBodyMaskPixelWithEdgeExpansion(
-                         textureX,
-                         textureY,
-                         playerTexture.width,
-                         playerTexture.height,
-                         originalColor));
                 Color resultColor = originalColor;
 
-                if (isBodyPixel)
+                if (IsBodyMaskPixel(maskColor))
                 {
                     Color drawingColor =
                         SampleTextureByUv(drawingTexture, u, v);
@@ -242,9 +235,7 @@ public class PlayerCamouflageApplier : MonoBehaviour
                         playerTexture.width,
                         playerTexture.height);
 
-                    if (lineColor.a > 0.01f &&
-                        (!isBodyPixel ||
-                         IsDarkLinePixel(lineColor)))
+                    if (lineColor.a > 0.01f)
                     {
                         resultColor = lineColor;
                     }
@@ -257,128 +248,6 @@ public class PlayerCamouflageApplier : MonoBehaviour
         resultTexture.SetPixels32(resultPixels);
         resultTexture.Apply();
         return resultTexture;
-    }
-
-    private bool IsBodyMaskPixelWithEdgeExpansion(
-        int textureX,
-        int textureY,
-        int referenceWidth,
-        int referenceHeight,
-        Color originalColor)
-    {
-        Color maskColor = SampleTextureBySourcePixel(
-                    bodyMaskTexture,
-                    textureX,
-                    textureY,
-                    referenceWidth,
-                    referenceHeight);
-
-        if (IsBodyMaskPixel(maskColor))
-        {
-            return true;
-        }
-
-        float originalBrightness = Mathf.Max(
-            originalColor.r,
-            Mathf.Max(originalColor.g, originalColor.b));
-
-        // Keep the dark outline intact while filling a one-pixel mask gap.
-        if (originalBrightness <= 0.12f)
-        {
-            return false;
-        }
-
-        for (int offsetY = -1; offsetY <= 1; offsetY++)
-        {
-            for (int offsetX = -1; offsetX <= 1; offsetX++)
-            {
-                if (offsetX == 0 &&
-                    offsetY == 0)
-                {
-                    continue;
-                }
-
-                Color neighborMask = SampleTextureBySourcePixel(
-                    bodyMaskTexture,
-                    textureX + offsetX,
-                    textureY + offsetY,
-                    referenceWidth,
-                    referenceHeight);
-
-                if (IsBodyMaskPixel(neighborMask))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private bool IsProtectedEyePixel(
-        int textureX,
-        int textureY,
-        int referenceWidth,
-        int referenceHeight)
-    {
-        if (lineTexture == null)
-        {
-            return false;
-        }
-
-        const int eyePadding = 2;
-
-        for (int offsetY = -eyePadding;
-             offsetY <= eyePadding;
-             offsetY++)
-        {
-            for (int offsetX = -eyePadding;
-                 offsetX <= eyePadding;
-                 offsetX++)
-            {
-                Color detailColor = SampleTextureBySourcePixel(
-                    lineTexture,
-                    textureX + offsetX,
-                    textureY + offsetY,
-                    referenceWidth,
-                    referenceHeight);
-                float minimumChannel = Mathf.Min(
-                    detailColor.r,
-                    Mathf.Min(detailColor.g, detailColor.b));
-
-                if (detailColor.a > 0.5f &&
-                    minimumChannel >= 0.7f)
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private bool IsColoredBodyPixel(Color color)
-    {
-        float maximumChannel = Mathf.Max(
-            color.r,
-            Mathf.Max(color.g, color.b));
-        float minimumChannel = Mathf.Min(
-            color.r,
-            Mathf.Min(color.g, color.b));
-
-        return color.a > 0.01f &&
-               maximumChannel > 0.04f &&
-               maximumChannel - minimumChannel > 0.025f;
-    }
-
-    private bool IsDarkLinePixel(Color color)
-    {
-        float brightness = Mathf.Max(
-            color.r,
-            Mathf.Max(color.g, color.b));
-
-        return color.a > 0.01f &&
-               brightness <= 0.05f;
     }
 
     private Color SampleTextureByUv(
@@ -405,17 +274,9 @@ public class PlayerCamouflageApplier : MonoBehaviour
         int referenceWidth,
         int referenceHeight)
     {
-        int clampedX = Mathf.Clamp(
-            sourceX,
-            0,
-            Mathf.Max(referenceWidth - 1, 0));
-        int clampedY = Mathf.Clamp(
-            sourceY,
-            0,
-            Mathf.Max(referenceHeight - 1, 0));
-        float u = (clampedX + 0.5f) /
+        float u = (sourceX + 0.5f) /
                   Mathf.Max(referenceWidth, 1);
-        float v = (clampedY + 0.5f) /
+        float v = (sourceY + 0.5f) /
                   Mathf.Max(referenceHeight, 1);
 
         return SampleTextureByUv(source, u, v);

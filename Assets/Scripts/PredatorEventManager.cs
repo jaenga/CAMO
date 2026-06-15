@@ -3,6 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
+using UnityEngine.UI;
 
 public class PredatorEventManager : MonoBehaviour
 {
@@ -15,7 +16,7 @@ public class PredatorEventManager : MonoBehaviour
     [SerializeField] private float drawingLimitTime = 60f;
     [Min(0f)]
     [FormerlySerializedAs("postDrawingFreezeTime")]
-    [SerializeField] private float resultAnimationDuration = 5f;
+    [SerializeField] private float resultAnimationDuration = 2.5f;
     [Min(0f)]
     [SerializeField] private float camouflageFadeDuration = 1.5f;
     [Min(0f)]
@@ -49,6 +50,14 @@ public class PredatorEventManager : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] private TMP_Text warningText;
+    [SerializeField] private Image warningImage;
+    [Min(0.1f)]
+    [SerializeField] private float warningPulseDuration = 1.2f;
+    [Tooltip("포식자 접근 경고 중 화면 전체에 빨간 반투명 효과를 표시합니다.")]
+    [SerializeField] private bool enableScreenDangerOverlay = true;
+    [Tooltip("화면 위험 효과의 색상과 최대 투명도입니다.")]
+    [SerializeField] private Color screenDangerOverlayColor =
+        new Color(1f, 0f, 0f, 0.22f);
     [SerializeField] private TMP_Text drawingTimerText;
     [SerializeField] private GameOverUIController gameOverUIController;
 
@@ -61,6 +70,8 @@ public class PredatorEventManager : MonoBehaviour
     private bool isDrawingActive;
     private bool submitRequested;
     private bool? developerForcedResult;
+    private Color warningImageColor = Color.white;
+    private Image screenDangerOverlay;
 
     public bool IsEventActive => isEventActive;
     public bool IsDrawingActive => isDrawingActive;
@@ -83,6 +94,8 @@ public class PredatorEventManager : MonoBehaviour
 
         SetDrawingPanelActive(false);
         SetTextVisible(warningText, false);
+        InitializeWarningImage();
+        InitializeScreenDangerOverlay();
         SetTextVisible(drawingTimerText, false);
 
         if (predator != null)
@@ -124,6 +137,16 @@ public class PredatorEventManager : MonoBehaviour
 
         eventCoroutine = StartCoroutine(PredatorEventRoutine());
         return true;
+    }
+
+    public void SetScreenDangerOverlayEnabled(bool isEnabled)
+    {
+        enableScreenDangerOverlay = isEnabled;
+
+        if (!isEnabled)
+        {
+            SetScreenDangerOverlayActive(false);
+        }
     }
 
     public void SubmitEventDrawing()
@@ -199,22 +222,22 @@ public class PredatorEventManager : MonoBehaviour
             Mathf.Max(minHideCountdownTime, maxHideCountdownTime));
         float countdownRemaining = countdownDuration;
 
-        SetTextVisible(warningText, true);
+        SetTextVisible(warningText, false);
+        SetWarningImageActive(true);
+        SetScreenDangerOverlayActive(true);
         SoundManager.Instance?.PlayWarning();
 
         while (countdownRemaining > 0f)
         {
-            if (warningText != null)
-            {
-                warningText.text =
-                    $"포식자 접근 중\n{countdownRemaining:F1}";
-            }
-
+            UpdateWarningImagePulse();
+            UpdateScreenDangerOverlayPulse();
             countdownRemaining -= Time.deltaTime;
             yield return null;
         }
 
         SetTextVisible(warningText, false);
+        SetWarningImageActive(false);
+        SetScreenDangerOverlayActive(false);
         SoundManager.Instance?.StopWarning();
         SetDrawingPanelActive(false);
 
@@ -799,6 +822,8 @@ public class PredatorEventManager : MonoBehaviour
         developerForcedResult = null;
         SetDrawingPanelActive(false);
         SetTextVisible(warningText, false);
+        SetWarningImageActive(false);
+        SetScreenDangerOverlayActive(false);
         SetTextVisible(drawingTimerText, false);
 
         if (camouflageApplier != null)
@@ -834,6 +859,140 @@ public class PredatorEventManager : MonoBehaviour
 
         text.text = string.Empty;
         text.gameObject.SetActive(isVisible);
+    }
+
+    private void InitializeWarningImage()
+    {
+        if (warningImage == null)
+        {
+            return;
+        }
+
+        warningImageColor = warningImage.color;
+        warningImage.gameObject.SetActive(false);
+    }
+
+    private void UpdateWarningImagePulse()
+    {
+        if (warningImage == null)
+        {
+            return;
+        }
+
+        float duration = Mathf.Max(warningPulseDuration, 0.1f);
+        float pulse = Mathf.PingPong(
+            Time.unscaledTime * 2f / duration,
+            1f);
+        Color color = warningImageColor;
+        color.a = Mathf.SmoothStep(
+            0f,
+            warningImageColor.a,
+            pulse);
+        warningImage.color = color;
+    }
+
+    private void SetWarningImageActive(bool isActive)
+    {
+        if (warningImage == null)
+        {
+            return;
+        }
+
+        Color color = warningImageColor;
+        color.a = isActive ? warningImageColor.a : 0f;
+        warningImage.color = color;
+        warningImage.gameObject.SetActive(isActive);
+    }
+
+    private void InitializeScreenDangerOverlay()
+    {
+        if (screenDangerOverlay != null)
+        {
+            SetScreenDangerOverlayActive(false);
+            return;
+        }
+
+        Canvas targetCanvas = null;
+
+        if (warningImage != null)
+        {
+            targetCanvas = warningImage.GetComponentInParent<Canvas>();
+        }
+
+        if (targetCanvas == null && drawingTimerText != null)
+        {
+            targetCanvas =
+                drawingTimerText.GetComponentInParent<Canvas>();
+        }
+
+        if (targetCanvas == null)
+        {
+            Debug.LogWarning(
+                "[PredatorEventManager] Canvas was not found. Screen danger overlay could not be created.",
+                this);
+            return;
+        }
+
+        GameObject overlayObject = new GameObject(
+            "ScreenDangerOverlay",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(Image));
+        RectTransform overlayRect =
+            overlayObject.GetComponent<RectTransform>();
+        overlayRect.SetParent(targetCanvas.transform, false);
+        overlayRect.anchorMin = Vector2.zero;
+        overlayRect.anchorMax = Vector2.one;
+        overlayRect.offsetMin = Vector2.zero;
+        overlayRect.offsetMax = Vector2.zero;
+        overlayRect.SetAsLastSibling();
+
+        if (warningImage != null &&
+            warningImage.canvas == targetCanvas)
+        {
+            warningImage.transform.SetAsLastSibling();
+        }
+
+        screenDangerOverlay = overlayObject.GetComponent<Image>();
+        screenDangerOverlay.raycastTarget = false;
+        screenDangerOverlay.color = screenDangerOverlayColor;
+        SetScreenDangerOverlayActive(false);
+    }
+
+    private void UpdateScreenDangerOverlayPulse()
+    {
+        if (!enableScreenDangerOverlay ||
+            screenDangerOverlay == null)
+        {
+            return;
+        }
+
+        float duration = Mathf.Max(warningPulseDuration, 0.1f);
+        float pulse = Mathf.PingPong(
+            Time.unscaledTime * 2f / duration,
+            1f);
+        Color color = screenDangerOverlayColor;
+        color.a = Mathf.SmoothStep(
+            0f,
+            screenDangerOverlayColor.a,
+            pulse);
+        screenDangerOverlay.color = color;
+    }
+
+    private void SetScreenDangerOverlayActive(bool isActive)
+    {
+        if (screenDangerOverlay == null)
+        {
+            return;
+        }
+
+        bool shouldShow =
+            isActive &&
+            enableScreenDangerOverlay;
+        Color color = screenDangerOverlayColor;
+        color.a = 0f;
+        screenDangerOverlay.color = color;
+        screenDangerOverlay.gameObject.SetActive(shouldShow);
     }
 
     private void OnDisable()

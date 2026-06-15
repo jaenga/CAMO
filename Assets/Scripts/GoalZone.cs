@@ -23,6 +23,8 @@ public class GoalZone : MonoBehaviour
     [SerializeField] private float fadeDuration = 1f;
     [Min(0f)]
     [SerializeField] private float cctvDuration = 5f;
+    [Min(0.01f)]
+    [SerializeField] private float missionTitleFadeDuration = 0.8f;
     [Min(0f)]
     [SerializeField] private float finalTextDelay = 0.5f;
 
@@ -212,8 +214,15 @@ public class GoalZone : MonoBehaviour
             yield return new WaitForSecondsRealtime(cctvDuration);
         }
 
+        SetGraphicAlpha(missionTitleImage, 0f);
         SetEndingStageObjects(false, true, false);
         SoundManager.Instance?.PlaySuccess();
+
+        yield return FadeGraphicAlpha(
+            missionTitleImage,
+            0f,
+            1f,
+            missionTitleFadeDuration);
 
         if (finalTextDelay > 0f)
         {
@@ -264,6 +273,31 @@ public class GoalZone : MonoBehaviour
         {
             restartText.SetActive(showFinalText);
         }
+    }
+
+    private IEnumerator FadeGraphicAlpha(
+        GameObject target,
+        float startAlpha,
+        float endAlpha,
+        float duration)
+    {
+        float safeDuration = Mathf.Max(duration, 0.01f);
+        float elapsed = 0f;
+        SetGraphicAlpha(target, startAlpha);
+
+        while (elapsed < safeDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float progress = Mathf.Clamp01(elapsed / safeDuration);
+            float alpha = Mathf.SmoothStep(
+                startAlpha,
+                endAlpha,
+                progress);
+            SetGraphicAlpha(target, alpha);
+            yield return null;
+        }
+
+        SetGraphicAlpha(target, endAlpha);
     }
 
     private void SetGraphicAlpha(GameObject target, float alpha)

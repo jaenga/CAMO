@@ -28,7 +28,7 @@ public class DrawingTest : MonoBehaviour, IPointerDownHandler, IDragHandler, IPo
     [Range(0.05f, 1.5f)]
     [SerializeField] private float colorTolerance = 0.5f;
     [Range(0f, 1f)]
-    [SerializeField] private float successSimilarityThreshold = 0.55f;
+    [SerializeField] private float successSimilarityThreshold = 0.4f;
     [SerializeField] private bool enableDebugLogs;
     private Color brushColor = new Color32(255, 105, 180, 255);
     private int brushSize = 2;
